@@ -1,3 +1,141 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Global App Theme ── */
+:root {
+  --app-bg: #060b19;
+  --app-bg-from: #060b19;
+  --app-bg-via: #0a1026;
+  --app-bg-to: #080d1e;
+}
+
+body {
+  background: var(--app-bg);
+  color: #f1f5f9;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Persistent ambient background — applied to #root */
+#root {
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 20%, rgba(59,130,246,0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 75%, rgba(139,92,246,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(99,102,241,0.04) 0%, transparent 60%),
+    linear-gradient(170deg, var(--app-bg-from) 0%, var(--app-bg-via) 45%, var(--app-bg-to) 100%);
+}
+
+/* Subtle grid overlay across the whole app */
+#root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.018;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Utility class for any page that needs the standard background */
+.app-page {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+/* Home screen styles for bottom sheet and map */
+.home-screen{
+	height:100vh;
+	width:100%;
+	position:relative;
+	overflow:hidden;
+	background:#000;
+}
+
+.map-container{
+	position:absolute;
+	top:0;
+	left:0;
+	right:0;
+	bottom:0;
+	z-index:1;
+}
+
+.bottom-sheet{
+	position:absolute;
+	bottom:0;
+	left:0;
+	right:0;
+	height:65vh;
+	background:#0c1225;
+	border-radius:24px 24px 0 0;
+	padding:20px;
+	overflow-y:auto;
+	z-index:5;
+	box-shadow:0 -10px 40px rgba(0,0,0,0.6);
+	border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.sheet-handle{
+	width:60px;
+	height:6px;
+	background:#aaa;
+	border-radius:20px;
+	margin:0 auto 14px auto;
+}
+
+.title{ color:#fff; font-size:22px; margin-bottom:10px; }
+.input{ width:100%; padding:14px; margin-bottom:10px; border-radius:12px; border:none; background:#1e293b; color:#fff; }
+.find-driver-btn{ width:100%; padding:14px; border:none; border-radius:12px; background:linear-gradient(90deg,#2563eb,#7c3aed); color:#fff; font-weight:bold; margin-top:10px; }
+.fare-text{ color:#4ade80; text-align:center; margin-top:12px; }
+.drivers-list{ margin-top:20px; height:300px; overflow-y:auto; }
+
+/* Smooth slow spin for second ring */
+@keyframes spinSlow {
+	100% { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+	animation: spinSlow 2s linear infinite;
+}
+
+/* Fade in for fullscreen overlays */
+@keyframes fadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+.fixed.inset-0 {
+	animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Improve native dropdown visibility and styling */
+select {
+	background-color: rgba(255,255,255,0.04);
+	color: #e6eef8;
+	border: 1px solid rgba(255,255,255,0.12);
+	padding: 0.75rem 1rem;
+	border-radius: 0.5rem;
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+}
+select:focus {
+	outline: none;
+	box-shadow: 0 0 0 4px rgba(99,102,241,0.12);
+}
+select option {
+	background: #ffffff;
+	color: #000000;
+	padding: 0.5rem 0.75rem;
+}
+
+/* Improve dropdown arrow contrast on dark backgrounds */
+select::-ms-expand { display: none; }
+

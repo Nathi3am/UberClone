@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { Route, Routes } from "react-router-dom";
+import React, { useContext, useState, useEffect } from "react";
+import { Route, Routes, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import Start from "./pages/Start";
 import UserLogin from "./pages/UserLogin";
 import UserSignup from "./pages/UserSignup";
@@ -13,108 +14,220 @@ import CaptainProtectedWrapper from "./pages/CaptainProtectWrapper";
 import CaptainLogout from "./pages/CaptainLogout";
 import RideStarted from "./pages/RideStarted";
 import CaptainRiding from "./pages/CaptainRiding";
+import AccountLayout from "./pages/account/AccountLayout";
+import Profile from "./pages/account/Profile";
+import Payment from "./pages/account/Payment";
+import Security from "./pages/account/Security";
+import Trips from "./pages/Trips";
+import Rides from "./pages/account/Rides";
+import CaptainDashboard from "./pages/captain/CaptainDashboard";
+import CaptainProfile from "./pages/captain/CaptainProfile";
+import CaptainVehicles from "./pages/captain/CaptainVehicles";
+import Requests from "./pages/captain/Requests";
+import CaptainRides from "./pages/captain/CaptainRides";
+import SpecialRequests from "./pages/SpecialRequests";
+import AdminDashboard from "./pages/AdminDashboard";
+import { AdminProvider } from "./admin/context/AdminContext";
+import AdminLayout from "./admin/layout/AdminLayout";
+import Dashboard from "./admin/pages/Dashboard";
+import Users from "./admin/Users";
+import Drivers from "./admin/pages/Drivers";
+import RidesAdmin from "./admin/Rides";
+import Settings from "./admin/pages/Settings";
+import AdminSpecialRequests from "./admin/pages/SpecialRequests";
+import AdminSpecialTripsDrivers from "./admin/pages/SpecialTripsDrivers";
 import { ToastContainer } from "react-toastify";
+import GlobalModal from './components/GlobalModal';
+import BottomNav from "./components/BottomNav";
+import FloatingRideButton from "./components/FloatingRideButton";
+import { usePushNotifications } from "./hooks/usePushNotifications";
+import { UserDataContext } from "./context/UserContext.jsx";
 
 const App = () => {
-  const [isMobileView, setIsMobileView] = useState(false);
+  const location = useLocation();
+  const { user } = useContext(UserDataContext);
+
+  // Push notifications: run at app level so they survive navigation.
+  // Detect role from localStorage (captainToken set on captain login).
+  const userToken = localStorage.getItem('token');
+  const captainToken = localStorage.getItem('captainToken');
+  const isCaptain = Boolean(captainToken);
+  const isPushEnabled = Boolean(captainToken || userToken);
+  usePushNotifications(isPushEnabled, isCaptain ? 'captain' : 'user');
+  const hideNavRoutes = ["/login", "/signup", "/", "/account/trips"];
+  const hiddenRoutes = [
+    "/login",
+    "/signup",
+    "/captain-login",
+    "/captain-signup",
+    "/captain-home",
+  ];
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalData, setModalData] = useState({ title: '', message: '', redirect: null });
 
   useEffect(() => {
-    const checkMobileView = () => {
-      setIsMobileView(window.innerWidth <= 768);
+    const handler = (e) => {
+      const d = e && e.detail ? e.detail : {};
+      setModalData({ title: d.title || 'Notice', message: d.message || '', redirect: d.redirect || null });
+      setModalOpen(true);
     };
-
-    // Check initially
-    checkMobileView();
-
-    // Add resize listener
-    window.addEventListener("resize", checkMobileView);
-
-    // Cleanup
-    return () => window.removeEventListener("resize", checkMobileView);
+    window.addEventListener('show-global-modal', handler);
+    return () => window.removeEventListener('show-global-modal', handler);
   }, []);
 
-  const DesktopMessage = () => (
-    <div
-      className="text-2xl font-semibold font-sans text-white flex flex-col justify-center items-center"
-      style={{
-        height: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        textAlign: "center",
-        padding: "20px",
-        background: "linear-gradient(to right, #00c6ff, #0072ff)",
-      }}
-    >
-      <img
-        className="w-[10%] p-2.5"
-        src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Uber_logo_2018.svg/1200px-Uber_logo_2018.svg.png"
-        alt="logo"
-      />
-      <h1>
-        Please switch to mobile viewing mode using developer tools or open on a
-        mobile device.
-        <br />
-        This website is designed for mobile devices only.
-      </h1>
-      <a
-        href="https://github.com/K-Daksh/UberClone"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-base font-thin hover:underline"
-      >
-        https://github.com/K-Daksh/UberClone
-      </a>
-    </div>
-  );
+  const handleClose = () => {
+    setModalOpen(false);
+    try {
+      if (modalData && modalData.redirect) window.location.href = modalData.redirect;
+    } catch (e) {}
+  };
 
-  return isMobileView ? (
-    <div>
-      <Routes>
-        <Route path="/" element={<Start />} />
-        <Route path="/login" element={<UserLogin />} />
-        <Route path="/signup" element={<UserSignup />} />
-        <Route path="/captain-login" element={<CaptainLogin />} />
-        <Route path="/captain-signup" element={<CaptainSignup />} />
-        <Route path="/riding" element={<RideStarted />} />
-        <Route
-          path="/captain-home"
-          element={
-            <CaptainProtectedWrapper>
-              <CaptainHome />
-            </CaptainProtectedWrapper>
-          }
-        />
-        <Route
-          path="/home"
-          element={
-            <UserProtectedWrapper>
-              <Home />
-            </UserProtectedWrapper>
-          }
-        />
-        <Route
-          path="/user-logout"
-          element={
-            <UserProtectedWrapper>
-              <UserLogout />
-            </UserProtectedWrapper>
-          }
-        ></Route>
-        <Route path="/captain-riding" element={<CaptainRiding />}></Route>
-        <Route
-          path="/captain-logout"
-          element={
-            <CaptainProtectedWrapper>
-              <CaptainLogout />
-            </CaptainProtectedWrapper>
-          }
-        ></Route>
-      </Routes>
+  return (
+    <div className="text-white min-h-screen relative z-[1]">
+      <div className="pb-20">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.25 }}
+          >
+            <Routes location={location}>
+              <Route path="/" element={<Start />} />
+              <Route path="/login" element={<UserLogin />} />
+              <Route path="/signup" element={<UserSignup />} />
+              <Route path="/captain-login" element={<CaptainLogin />} />
+              <Route path="/captain-signup" element={<CaptainSignup />} />
+              <Route path="/riding" element={<RideStarted />} />
+              <Route
+                path="/captain-home"
+                element={
+                  <CaptainProtectedWrapper>
+                    <CaptainHome />
+                  </CaptainProtectedWrapper>
+                }
+              />
+              <Route
+                path="/captain/dashboard"
+                element={
+                  <CaptainProtectedWrapper>
+                    <CaptainDashboard />
+                  </CaptainProtectedWrapper>
+                }
+              />
+              <Route
+                path="/captain/earnings"
+                element={
+                  <CaptainProtectedWrapper>
+                    <CaptainDashboard />
+                  </CaptainProtectedWrapper>
+                }
+              />
+              <Route
+                path="/captain-requests"
+                element={
+                  <CaptainProtectedWrapper>
+                    <Requests />
+                  </CaptainProtectedWrapper>
+                }
+              />
+              <Route
+                path="/captain-rides"
+                element={
+                  <CaptainProtectedWrapper>
+                    <CaptainRides />
+                  </CaptainProtectedWrapper>
+                }
+              />
+              <Route
+                path="/captain-profile"
+                element={
+                  <CaptainProtectedWrapper>
+                    <CaptainProfile />
+                  </CaptainProtectedWrapper>
+                }
+              />
+              <Route
+                path="/captain-vehicles"
+                element={
+                  <CaptainProtectedWrapper>
+                    <CaptainVehicles />
+                  </CaptainProtectedWrapper>
+                }
+              />
+              <Route
+                path="/captain-security"
+                element={
+                  <CaptainProtectedWrapper>
+                    <Security />
+                  </CaptainProtectedWrapper>
+                }
+              />
+              <Route
+                path="/home"
+                element={
+                  <UserProtectedWrapper>
+                    <Home />
+                  </UserProtectedWrapper>
+                }
+              />
+              <Route
+                path="/account"
+                element={
+                  <UserProtectedWrapper>
+                    <AccountLayout />
+                  </UserProtectedWrapper>
+                }
+              >
+                <Route path="profile" element={<Profile />} />
+                <Route path="payment" element={<Payment />} />
+                <Route path="security" element={<Security />} />
+                <Route path="rides" element={<Rides />} />
+              </Route>
+              <Route
+                path="/user-logout"
+                element={
+                  <UserProtectedWrapper>
+                    <UserLogout />
+                  </UserProtectedWrapper>
+                }
+              ></Route>
+              <Route path="/account/trips" element={<Trips />} />
+              <Route path="/captain-riding" element={<CaptainRiding />}></Route>
+              <Route
+                path="/captain-logout"
+                element={
+                  <CaptainProtectedWrapper>
+                    <CaptainLogout />
+                  </CaptainProtectedWrapper>
+                }
+              ></Route>
+              <Route path="/special-requests" element={<SpecialRequests />} />
+              <Route path="/admin" element={<AdminProvider><AdminLayout /></AdminProvider>}>
+                <Route index element={<Dashboard />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="users" element={<Users />} />
+                <Route path="drivers" element={<Drivers />} />
+                <Route path="rides" element={<RidesAdmin />} />
+                <Route path="special-requests" element={<AdminSpecialRequests />} />
+                <Route path="special-trips-drivers" element={<AdminSpecialTripsDrivers />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="earnings" element={<div> Earnings summary coming soon </div>} />
+              </Route>
+            </Routes>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      {localStorage.getItem("token") && user && user.role === "user" && location.pathname === "/riding" && (
+        <FloatingRideButton />
+      )}
+      {!hideNavRoutes.includes(location.pathname) && !location.pathname.startsWith("/captain") && (
+        <BottomNav />
+      )}
       <ToastContainer />
+      <GlobalModal open={modalOpen} title={modalData.title} message={modalData.message} onClose={handleClose} />
     </div>
-  ) : (
-    <DesktopMessage />
   );
 };
 

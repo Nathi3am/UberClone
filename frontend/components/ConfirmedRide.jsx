@@ -24,7 +24,7 @@ const ConfirmedRide = (props) => {
         <div
           className="mt-2"
           style={{
-            background: "linear-gradient(to right, #00dbde, #fc00ff)",
+            background: "linear-gradient(to right, #6b7280, #374151)",
             height: "3px",
             width: "80%",
             borderRadius: "50px",
@@ -87,9 +87,22 @@ const ConfirmedRide = (props) => {
           </div>
           <div className="flex flex-col justify-start items-start w-full mr-5">
             <h2 className="text-xl font-semibold">
-              ₹{Math.ceil(props.selectedPrice)}
+              R{props.selectedPrice?.toFixed(2) || '0.00'}
             </h2>
-            <h4 className="text-sm">Cash or UPI Only</h4>
+            <h4 className="text-sm">Cash Payment Only</h4>
+            <div
+              className="my-2"
+              style={{ height: "2px", width: "100%", background: "#D6D6D6" }}
+            ></div>
+          </div>
+        </div>
+        <div className="flex flex-row justify-start w-screen ml-2">
+          <div className="flex items-center justify-center w-[20%]">
+            <i className="ri-user-fill"></i>
+          </div>
+          <div className="flex flex-col justify-start items-start w-full mr-5">
+            <h2 className="text-xl font-semibold">{props.passengers || 1}</h2>
+            <h4 className="text-sm">Passengers</h4>
             <div
               className="my-2"
               style={{ height: "2px", width: "100%", background: "#D6D6D6" }}
@@ -104,8 +117,7 @@ const ConfirmedRide = (props) => {
             props.setConfirmRidePanel(false);
             props.createRide();
           }}
-          style={{ width: "60%", padding: "5px", paddingBottom: "8px" }}
-          className="bg-black text-white text-xl rounded-lg mb-5"
+          className="w-3/5 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold shadow-lg hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-95 transition-all duration-300 mb-5"
         >
           Confirm Ride
         </button>

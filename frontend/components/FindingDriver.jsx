@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import DriverPreviewCard from "../src/components/DriverPreviewCard";
 // import { useNavigate } from "react-router-dom";
 // import { toast } from "react-toastify";
 
@@ -99,7 +100,7 @@ const FindingDriver = (props) => {
         <div
           className="mt-2"
           style={{
-            background: "linear-gradient(to right, #00dbde, #fc00ff)",
+            background: "linear-gradient(to right, #6b7280, #374151)",
             height: "3px",
             width: "80%",
             borderRadius: "50px",
@@ -162,9 +163,9 @@ const FindingDriver = (props) => {
           </div>
           <div className="flex flex-col justify-start items-start w-full mr-5">
             <h2 className="text-xl font-semibold">
-              ₹{Math.ceil(props.selectedPrice)}
+              R{props.selectedPrice?.toFixed(2) || '0.00'}
             </h2>
-            <h4 className="text-sm">Cash or UPI Only</h4>
+            <h4 className="text-sm">Cash Payment Only</h4>
             <div
               className="my-2"
               style={{ height: "2px", width: "100%", background: "#D6D6D6" }}
@@ -172,6 +173,18 @@ const FindingDriver = (props) => {
           </div>
         </div>
       </div>
+
+      {/* Nearby Drivers Section */}
+      {props.nearbyDrivers && props.nearbyDrivers.length > 0 && (
+        <div className="mx-2 mt-4">
+          <h3 className="text-lg font-semibold mb-3">Nearby Drivers</h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {props.nearbyDrivers.map((driver) => (
+              <DriverPreviewCard key={driver._id || driver.id} driver={driver} onSelect={props.onSelectDriver} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

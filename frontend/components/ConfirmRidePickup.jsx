@@ -14,7 +14,7 @@ const ConfirmRidePickup = (props) => {
     //console.log("Submit pressed", otp);
     e.preventDefault();
     const response = await axios.get(
-      `${import.meta.env.VITE_BASE_URL}/rides/start-ride`,
+      `${import.meta.env.VITE_API_URL}/rides/start-ride`,
       {
         params: {
           rideId: props.ride._id,
@@ -47,7 +47,7 @@ const ConfirmRidePickup = (props) => {
           <div
             className="mt-2"
             style={{
-              background: "linear-gradient(to right, #00dbde, #fc00ff)",
+              background: "linear-gradient(to right, #6b7280, #374151)",
               height: "3px",
               width: "80%",
               borderRadius: "50px",

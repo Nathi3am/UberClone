@@ -19,7 +19,10 @@ const userSchema = new mongoose.Schema({
     email: {
         type: String,
         required: true,
-        minlength: [5, 'Email must be at least 6 characters long']
+        unique: true,
+        lowercase: true,
+        match: [/\S+@\S+\.\S+/, 'Please enter a valid email'],
+        minlength: [6, 'Email must be at least 6 characters long']
     },
     password: {
         type: String,
@@ -28,6 +31,40 @@ const userSchema = new mongoose.Schema({
     },
     socketId: {
         type: String
+    },
+    paymentMethod: {
+        type: String,
+        enum: ["cash", "card", "wallet"],
+        default: "cash"
+    },
+    profileImage: {
+        type: String,
+        default: ""
+    },
+    phone: {
+        type: String,
+        required: false
+    },
+    role: {
+        type: String,
+        enum: ["user", "captain", "admin"],
+        default: "user"
+    },
+    suspended: {
+        type: Boolean,
+        default: false
+    },
+    activeTokens: [String],
+    pushTokens: [String],
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+    ,
+    activeRide: {
+        type: require('mongoose').Schema.Types.ObjectId,
+        ref: 'Ride',
+        default: null
     }
 });
 

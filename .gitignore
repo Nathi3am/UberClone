@@ -1,2 +1,25 @@
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# Dependencies
 node_modules
+
+# Sensitive credentials
+**/serviceAccountKey.json
+**/serviceAccountKey*.json
+
+# IDE
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+
+# Temp/test scripts
+tmp_*.js

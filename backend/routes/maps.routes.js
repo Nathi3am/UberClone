@@ -24,11 +24,31 @@ router.get('/get-suggestions',
     mapController.getSuggestions
 )
 
-router.get('/get-prices',
-    query('origin').isString().notEmpty().isLength({ min: 3 }),
-    query('destination').isString().notEmpty().isLength({ min: 3 }),
+router.get('/get-prices', mapController.getPrices);
+
+router.get('/directions',
+    query('originLat').notEmpty(),
+    query('originLng').notEmpty(),
+    query('destLat').notEmpty(),
+    query('destLng').notEmpty(),
     authMiddleware.authUser,
-    mapController.getPrices
+    mapController.getDirections
+);
+
+// Public directions proxy (no auth) - useful for client dev or when auth header is not present
+router.get('/directions-proxy',
+    query('originLat').notEmpty(),
+    query('originLng').notEmpty(),
+    query('destLat').notEmpty(),
+    query('destLng').notEmpty(),
+    mapController.getDirectionsPublic
+);
+
+router.get('/nearby',
+    query('lat').isString().notEmpty(),
+    query('lng').isString().notEmpty(),
+    authMiddleware.authUser,
+    mapController.getNearbyDrivers
 );
 
 module.exports = router;

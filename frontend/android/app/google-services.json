@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "854278380673",
+    "project_id": "vexomove-8d0a9",
+    "storage_bucket": "vexomove-8d0a9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:854278380673:android:f810c16c9aaf52e97f0180",
+        "android_client_info": {
+          "package_name": "VexoMove.co.za"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsTwTndErlZjXpI4Wj6Hdy7F-jRR0zzT8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

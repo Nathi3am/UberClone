@@ -4,8 +4,9 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import "remixicon/fonts/remixicon.css";
 import FinishRide from "../../components/FinishRide";
-import LiveTracking from "../../components/LiveTracking";
+import LiveTracking from "../components/LiveTracking";
 import { ToastContainer, toast } from "react-toastify";
+import logoPath from "../config/logo";
 
 const CaptainRiding = () => {
   const [finishRidePanel, setFinishRidePanel] = React.useState(false);
@@ -41,15 +42,11 @@ const CaptainRiding = () => {
           <Link
           // onClick={async () => {
           //   //console.log("Trying logout");
-          //   await axios.get(`${import.meta.env.VITE_API_URL}/captain-logout`);
+          //   await axios.get(`${import.meta.env.VITE_BASE_URL}/captain/logout`);
           // }}
           // to="/captain-login"
           >
-            <img
-              className="w-16"
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Uber_logo_2018.svg/1200px-Uber_logo_2018.svg.png"
-              alt="logo"
-            />
+            <img className="w-16" src={logoPath} alt="logo" />
           </Link>
         </div>
         <Link

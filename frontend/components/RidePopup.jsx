@@ -6,6 +6,16 @@ const RidePopup = (props) => {
   const pickupAd = props.ride?.pickup;
   const fare = props.ride?.fare;
 
+  const passengerName =
+    props.ride?.userName ||
+    (props.ride?.user
+      ? (props.ride.user.fullname && (props.ride.user.fullname.firstname || props.ride.user.fullname.lastname)
+          ? `${props.ride.user.fullname.firstname || ''} ${props.ride.user.fullname.lastname || ''}`.trim()
+          : props.ride.user.name || props.ride.user.email)
+      : null) || 'Passenger';
+
+  const paymentMethod = props.ride?.paymentMethod || props.ride?.payment || 'card';
+
   const formatAddress = (address) => {
     const firstCommaIndex = address.indexOf(",");
     const firstPart = address.substring(0, firstCommaIndex);
@@ -25,7 +35,7 @@ const RidePopup = (props) => {
         <div
           className="mt-2"
           style={{
-            background: "linear-gradient(to right, #00dbde, #fc00ff)",
+            background: "linear-gradient(to right, #6b7280, #374151)",
             height: "3px",
             width: "80%",
             borderRadius: "50px",
@@ -63,11 +73,50 @@ const RidePopup = (props) => {
         </div>
         <div className="flex flex-row justify-start w-screen ml-2">
           <div className="flex items-center justify-center w-[20%]">
+            <i className="ri-user-line ri-xl"></i>
+          </div>
+          <div className="flex flex-col justify-start items-start w-full mr-5">
+            <h2 className="text-xl font-semibold">{passengerName}</h2>
+            <h4 className="text-sm">Passenger</h4>
+            <div
+              className="my-2"
+              style={{ height: "2px", width: "100%", background: "#D6D6D6" }}
+            ></div>
+          </div>
+        </div>
+        <div className="flex flex-row justify-start w-screen ml-2">
+          <div className="flex items-center justify-center w-[20%]">
+            <i className="ri-user-fill ri-xl"></i>
+          </div>
+          <div className="flex flex-col justify-start items-start w-full mr-5">
+            <h2 className="text-xl font-semibold">{props.ride?.passengers || props.ride?.passengerCount || 1}</h2>
+            <h4 className="text-sm">Passengers</h4>
+            <div
+              className="my-2"
+              style={{ height: "2px", width: "100%", background: "#D6D6D6" }}
+            ></div>
+          </div>
+        </div>
+        <div className="flex flex-row justify-start w-screen ml-2">
+          <div className="flex items-center justify-center w-[20%]">
+            <i className="ri-wallet-line ri-xl"></i>
+          </div>
+          <div className="flex flex-col justify-start items-start w-full mr-5">
+            <h2 className="text-xl font-semibold">{paymentMethod === 'card' ? 'Card' : paymentMethod === 'cash' ? 'Cash' : paymentMethod}</h2>
+            <h4 className="text-sm">Payment Method</h4>
+            <div
+              className="my-2"
+              style={{ height: "2px", width: "100%", background: "#D6D6D6" }}
+            ></div>
+          </div>
+        </div>
+        <div className="flex flex-row justify-start w-screen ml-2">
+          <div className="flex items-center justify-center w-[20%]">
             <i className="ri-bank-card-2-fill"></i>
           </div>
           <div className="flex flex-col justify-start items-start w-full mr-5">
-            <h2 className="text-xl font-semibold">₹{fare}</h2>
-            <h4 className="text-sm">Cash Cash</h4>
+            <h2 className="text-xl font-semibold">R{fare ? Number(fare).toFixed(2) : '0.00'}</h2>
+            <h4 className="text-sm">Estimated Earnings</h4>
             <div
               className="my-2"
               style={{ height: "2px", width: "100%", background: "#D6D6D6" }}

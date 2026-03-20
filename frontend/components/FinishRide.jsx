@@ -23,20 +23,26 @@ const FinishRide = ({ setFinishRidePanel, ride }) => {
   };
 
   async function endRide() {
-    const response = await axios.post(
-      `${import.meta.env.VITE_BASE_URL}/rides/end-ride`,
-      {
-        rideId: ride._id,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      }
-    );
+    try {
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL}/rides/complete/${ride._id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
-    if (response.status === 200) {
-      navigate("/captain-home");
+      if (response && (response.status === 200 || response.status === 201)) {
+        toast.success('Ride completed');
+        navigate("/captain-home");
+      } else {
+        toast.error('Failed to complete ride');
+      }
+    } catch (err) {
+      console.error('endRide error', err);
+      toast.error(err?.response?.data?.message || 'Failed to complete ride');
     }
   }
 
@@ -68,7 +74,7 @@ const FinishRide = ({ setFinishRidePanel, ride }) => {
         <div
           className="mt-2"
           style={{
-            background: "linear-gradient(to right, #00dbde, #fc00ff)",
+            background: "linear-gradient(to right, #6b7280, #374151)",
             height: "3px",
             width: "80%",
             borderRadius: "50px",
