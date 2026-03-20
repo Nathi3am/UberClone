@@ -9,18 +9,41 @@ let io;
 // shared online drivers map (kept in socketStore.js so other modules can access the same reference)
 const onlineDrivers = require('./socketStore');
 
+// Validate socket origin the same way as the Express CORS in app.js
+function isAllowedOrigin(origin) {
+    if (!origin) return true;
+    const isLocalhost =
+        origin.startsWith('http://localhost') ||
+        origin.startsWith('https://localhost') ||
+        origin.startsWith('http://127.0.0.1') ||
+        origin.startsWith('https://127.0.0.1');
+    if (isLocalhost) return true;
+    const isAppLocalhost =
+        origin.startsWith('capacitor://localhost') ||
+        origin.startsWith('ionic://localhost') ||
+        origin.startsWith('app://localhost');
+    if (isAppLocalhost) return true;
+    const isLan = /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(origin);
+    if (isLan) return true;
+    return false;
+}
+
 function initializeSocket(server) {
     // Configure CORS origins dynamically so mobile devices (on LAN) can connect
     const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || null; // comma-separated list
-    let corsOrigin = true;
+    let corsOrigin;
     if (allowedOriginsEnv) {
-        corsOrigin = allowedOriginsEnv.split(',').map(s => s.trim());
-    } else if (process.env.NODE_ENV === 'production') {
-        // in production explicitly set allowed origins via ALLOWED_ORIGINS env var
-        corsOrigin = ['https://your-production-domain.example'];
+        const envOrigins = allowedOriginsEnv.split(',').map(s => s.trim());
+        corsOrigin = (origin, cb) => {
+            if (!origin || envOrigins.includes(origin) || isAllowedOrigin(origin)) return cb(null, true);
+            return cb(new Error('Not allowed by CORS'));
+        };
     } else {
-        // development: allow any origin so mobile devices on the same network can connect
-        corsOrigin = true;
+        // Allow Capacitor, localhost, and LAN origins in all environments
+        corsOrigin = (origin, cb) => {
+            if (isAllowedOrigin(origin)) return cb(null, true);
+            return cb(new Error('Not allowed by CORS'));
+        };
     }
 
     io = socketIo(server, {
