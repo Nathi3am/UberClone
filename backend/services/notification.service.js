@@ -1,14 +1,12 @@
 /**
  * Push Notification Service (FCM via firebase-admin)
  *
- * Requires:
- *  1. A Firebase service account key file downloaded from:
- *     Firebase Console → Project Settings → Service Accounts → Generate new private key
- *  2. Set FIREBASE_SERVICE_ACCOUNT_PATH in backend/.env to the absolute path of that file.
- *     Example: FIREBASE_SERVICE_ACCOUNT_PATH=./serviceAccountKey.json
+ * Requires ONE of:
+ *  1. FIREBASE_SERVICE_ACCOUNT env var containing the full JSON string of the
+ *     service account key (recommended for cloud hosts like Render).
+ *  2. FIREBASE_SERVICE_ACCOUNT_PATH env var pointing to a local JSON file.
  *
- * If the env var is not set or the file is missing, push notifications are
- * silently disabled and the app continues to work without them.
+ * If neither is set, push notifications are silently disabled.
  */
 
 let messaging = null;
@@ -16,12 +14,20 @@ let messaging = null;
 try {
     const admin = require('firebase-admin');
 
-    const keyPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-    if (keyPath) {
-        const path = require('path');
-        const resolvedPath = path.resolve(keyPath);
-        const serviceAccount = require(resolvedPath);
+    let serviceAccount = null;
 
+    // Option 1: JSON string in env var (for Render / cloud deploys)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    }
+    // Option 2: Local file path (for local dev)
+    else if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+        const path = require('path');
+        const resolvedPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
+        serviceAccount = require(resolvedPath);
+    }
+
+    if (serviceAccount) {
         if (!admin.apps.length) {
             admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
@@ -31,7 +37,7 @@ try {
         messaging = admin.messaging();
         console.log('[push] Firebase Admin initialized — push notifications enabled');
     } else {
-        console.warn('[push] FIREBASE_SERVICE_ACCOUNT_PATH not set — push notifications disabled');
+        console.warn('[push] No Firebase credentials found — push notifications disabled');
     }
 } catch (err) {
     console.warn('[push] Firebase Admin init failed:', err && err.message ? err.message : err);
