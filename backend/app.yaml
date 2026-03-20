@@ -1,7 +1,9 @@
 runtime: nodejs22
 env: standard
 
-env_variables:
-  CLOUDINARY_CLOUD_NAME: "drrnkz5wg"
-  CLOUDINARY_API_KEY: "714715336511387"
-  CLOUDINARY_API_SECRET: "0xQuTnyH_C6HpOMP8En3LVylPHE"
+# Set env_variables via Google Cloud Secret Manager or `gcloud app deploy --set-env-vars`
+# Do NOT hardcode secrets here.
+# env_variables:
+#   CLOUDINARY_CLOUD_NAME: (from Secret Manager)
+#   CLOUDINARY_API_KEY: (from Secret Manager)
+#   CLOUDINARY_API_SECRET: (from Secret Manager)

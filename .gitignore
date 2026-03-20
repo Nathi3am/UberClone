@@ -9,6 +9,7 @@ node_modules
 # Sensitive credentials
 **/serviceAccountKey.json
 **/serviceAccountKey*.json
+backend/app.yaml
 
 # IDE
 .vscode/
