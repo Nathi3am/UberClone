@@ -1,5 +1,6 @@
 const https = require('https');
-const key = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyAvELnEqeCO6536M3DyRhu5Sfr4xcgkspk';
+const key = process.env.GOOGLE_MAPS_API_KEY;
+if (!key) { console.error('ERROR: Set GOOGLE_MAPS_API_KEY env variable'); process.exit(1); }
 const origin = encodeURIComponent('1600 Amphitheatre Parkway, Mountain View, CA');
 const dest = encodeURIComponent('1 Infinite Loop, Cupertino, CA');
 const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${dest}&key=${key}`;
