@@ -3,6 +3,7 @@ import { useState } from "react";
 import axios from 'axios';
 import { socket } from '../context/SocketContext'
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URL from '../config/api';
 
 export default function AdminLogin() {
 
@@ -14,7 +15,7 @@ export default function AdminLogin() {
     e.preventDefault();
     (async () => {
       try {
-        const res = await axios.post('http://localhost:4000/admin/login', { email, password });
+        const res = await axios.post(`${API_BASE_URL}/admin/login`, { email, password });
         if (res.data && res.data.token) {
           localStorage.setItem('token', res.data.token);
           if (res.data.user && res.data.user.role) localStorage.setItem('role', res.data.user.role);

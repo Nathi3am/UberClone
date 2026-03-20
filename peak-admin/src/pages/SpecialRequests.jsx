@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import API_BASE_URL from '../config/api';
 
 export default function SpecialRequests () {
   const [items, setItems] = useState([]);
@@ -22,7 +23,7 @@ export default function SpecialRequests () {
   const loadItems = async (editId) => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:4000/admin/special-requests', { headers: authHeaders() });
+      const res = await axios.get(`${API_BASE_URL}/admin/special-requests`, { headers: authHeaders() });
       const list = res.data?.data || [];
       setItems(list);
 
@@ -82,7 +83,7 @@ export default function SpecialRequests () {
 
     try {
       setUploadingImage(true);
-      const res = await axios.post('http://localhost:4000/admin/special-requests/upload', formData, {
+      const res = await axios.post(`${API_BASE_URL}/admin/special-requests/upload`, formData, {
         headers: {
           ...authHeaders(),
           'Content-Type': 'multipart/form-data'
@@ -119,7 +120,7 @@ export default function SpecialRequests () {
       setLoading(true);
       if (itemToEdit) {
         await axios.patch(
-          `http://localhost:4000/admin/special-requests/${itemToEdit._id || itemToEdit.id}`,
+          `${API_BASE_URL}/admin/special-requests/${itemToEdit._id || itemToEdit.id}`,
           {
             name: name.trim(),
             description: description.trim(),
@@ -135,7 +136,7 @@ export default function SpecialRequests () {
         );
       } else {
         await axios.post(
-          'http://localhost:4000/admin/special-requests',
+          `${API_BASE_URL}/admin/special-requests`,
           {
             name: name.trim(),
             description: description.trim(),
@@ -167,7 +168,7 @@ export default function SpecialRequests () {
 
     try {
       setLoading(true);
-      await axios.delete(`http://localhost:4000/admin/special-requests/${item._id || item.id}`, { headers: authHeaders() });
+      await axios.delete(`${API_BASE_URL}/admin/special-requests/${item._id || item.id}`, { headers: authHeaders() });
       await loadItems();
       if (selectedItem && (selectedItem._id === item._id || selectedItem.id === item.id)) {
         setSelectedItem(null);
@@ -355,7 +356,7 @@ export default function SpecialRequests () {
           <div style={{ color: '#94a3b8' }}>No special requests available.</div>
         ) : (
           filteredItems.map((item) => {
-            const imageSrc = item.imageUrl ? (item.imageUrl.startsWith('http') ? item.imageUrl : `http://localhost:4000${item.imageUrl}`) : null;
+            const imageSrc = item.imageUrl ? (item.imageUrl.startsWith('http') ? item.imageUrl : `${API_BASE_URL}${item.imageUrl}`) : null;
             return (
               <div key={item._id || item.id} style={{ padding: 16, borderRadius: 12, border: '1px solid rgba(147,197,253,0.4)', background: 'rgba(15,23,42,0.7)' }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>

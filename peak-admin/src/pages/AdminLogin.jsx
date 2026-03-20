@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { socket } from '../context/SocketContext'
+import API_BASE_URL from '../config/api';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
@@ -163,7 +164,7 @@ export default function AdminLogin() {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.post("http://localhost:4000/admin/login", { email, password });
+      const res = await axios.post(`${API_BASE_URL}/admin/login`, { email, password });
       if (res.data?.token) {
         // Store token under multiple keys to remain compatible with different admin clients
         localStorage.setItem("token", res.data.token);

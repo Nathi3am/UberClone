@@ -119,7 +119,7 @@ export default function Commission() {
   const [commission, setCommission] = useState(20);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
-  const API = import.meta.env.VITE_BASE_URL || 'http://localhost:4000';
+  const API = import.meta.env.VITE_BASE_URL || API_BASE_URL;
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });

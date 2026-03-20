@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import API_BASE_URL from '../config/api';
 
 export default function TripsDrivers() {
   const [drivers, setDrivers] = useState([]);
@@ -14,7 +15,7 @@ export default function TripsDrivers() {
 
   const loadDrivers = () => {
     setLoading(true);
-    axios.get('http://localhost:4000/admin/special-trips-drivers', { headers: authHeaders() })
+    axios.get(`${API_BASE_URL}/admin/special-trips-drivers`, { headers: authHeaders() })
       .then(res => {
         setDrivers(Array.isArray(res.data?.data) ? res.data.data : []);
         setLoading(false);
@@ -63,7 +64,7 @@ export default function TripsDrivers() {
     setUploading(true);
     try {
       // You may want to create a dedicated upload endpoint for images
-      const res = await axios.post('http://localhost:4000/admin/special-requests/upload', formData, {
+      const res = await axios.post(`${API_BASE_URL}/admin/special-requests/upload`, formData, {
         headers: { ...authHeaders(), 'Content-Type': 'multipart/form-data' }
       });
       const url = res.data?.data?.imageUrl;
@@ -92,9 +93,9 @@ export default function TripsDrivers() {
     };
     try {
       if (editingId) {
-        await axios.patch(`http://localhost:4000/admin/special-trips-drivers/${editingId}`, payload, { headers: authHeaders() });
+        await axios.patch(`${API_BASE_URL}/admin/special-trips-drivers/${editingId}`, payload, { headers: authHeaders() });
       } else {
-        await axios.post('http://localhost:4000/admin/special-trips-drivers', payload, { headers: authHeaders() });
+        await axios.post(`${API_BASE_URL}/admin/special-trips-drivers`, payload, { headers: authHeaders() });
       }
       setShowForm(false);
       loadDrivers();
@@ -106,7 +107,7 @@ export default function TripsDrivers() {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this driver?')) return;
     try {
-      await axios.delete(`http://localhost:4000/admin/special-trips-drivers/${id}`, { headers: authHeaders() });
+      await axios.delete(`${API_BASE_URL}/admin/special-trips-drivers/${id}`, { headers: authHeaders() });
       loadDrivers();
     } catch (err) {
       alert('Failed to delete driver');
@@ -125,7 +126,7 @@ export default function TripsDrivers() {
           <div key={driver._id || driver.id} style={{ border: '1px solid #334155', borderRadius: 12, padding: 18, background: 'rgba(15,23,42,0.85)' }}>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
               <img
-                src={driver.imageUrl ? (driver.imageUrl.startsWith('http') ? driver.imageUrl : `http://localhost:4000${driver.imageUrl}`) : 'https://via.placeholder.com/100?text=No+Img'}
+                src={driver.imageUrl ? (driver.imageUrl.startsWith('http') ? driver.imageUrl : `${API_BASE_URL}${driver.imageUrl}`) : 'https://via.placeholder.com/100?text=No+Img'}
                 alt={driver.name || 'Driver'}
                 style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 10, border: '1px solid #64748b' }}
               />
@@ -169,7 +170,7 @@ export default function TripsDrivers() {
                 {uploading && <span style={{ color: '#9ca3af', fontSize: 12 }}>Uploading image...</span>}
                 {form.imageUrl && (
                   <div style={{ position: 'relative', width: '100%', height: 120, borderRadius: 8, overflow: 'hidden', marginTop: 8, border: '1px solid rgba(148,163,184,0.4)' }}>
-                    <img src={form.imageUrl.startsWith('http') ? form.imageUrl : `http://localhost:4000${form.imageUrl}`} alt="item" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <img src={form.imageUrl.startsWith('http') ? form.imageUrl : `${API_BASE_URL}${form.imageUrl}`} alt="item" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   </div>
                 )}
               </div>

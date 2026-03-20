@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
+import API_BASE_URL from '../config/api';
 
 export default function Earnings(){
   const [earnings,setEarnings] = useState(null)
   useEffect(()=>{
     const token = localStorage.getItem('token')
-    axios.get('http://localhost:4000/admin/earnings', { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(`${API_BASE_URL}/admin/earnings`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r=>setEarnings(r.data))
       .catch(()=>{})
   },[])

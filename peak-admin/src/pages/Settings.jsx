@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import API_BASE_URL from '../config/api';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 
 export default function Settings(){
   const [loading, setLoading] = useState(true);

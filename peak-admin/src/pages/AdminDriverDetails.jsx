@@ -4,6 +4,7 @@ import axios from "axios";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Toast from '../components/Toast';
+import API_BASE_URL from '../config/api';
 
 const AdminDriverDetails = () => {
   const { driverId } = useParams();
@@ -32,7 +33,7 @@ const AdminDriverDetails = () => {
 
   const fetchDriver = async () => {
     try {
-      const res = await axios.get(`http://localhost:4000/admin/driver/${driverId}`, { headers: getAuthHeaders() });
+      const res = await axios.get(`${API_BASE_URL}/admin/driver/${driverId}`, { headers: getAuthHeaders() });
       // Merge top-level stats (totalTrips, totalEarnings, declinedRequests) into driver for easier rendering
       const payload = res.data || {};
       const drv = payload.driver || payload;
@@ -49,7 +50,7 @@ const AdminDriverDetails = () => {
 
   const fetchWallet = async () => {
     try {
-      const res = await axios.get(`http://localhost:4000/admin/driver-wallet/${driverId}`, { headers: getAuthHeaders() });
+      const res = await axios.get(`${API_BASE_URL}/admin/driver-wallet/${driverId}`, { headers: getAuthHeaders() });
       const walletResp = res.data?.wallet ?? res.data ?? {};
       const available = typeof walletResp.balance === "number" ? walletResp.balance : walletResp.walletBalance || 0;
       const owed = typeof res.data.owedToPlatform !== "undefined" ? Number(res.data.owedToPlatform || 0) : typeof walletResp.totalCommission === "number" ? Number(walletResp.totalCommission || 0) : 0;
@@ -113,7 +114,7 @@ const AdminDriverDetails = () => {
   const handlePayout = async () => {
     setPayoutLoading(true);
     try {
-      await axios.post(`http://localhost:4000/admin/payout-driver/${driverId}`, {}, { headers: getAuthHeaders() });
+      await axios.post(`${API_BASE_URL}/admin/payout-driver/${driverId}`, {}, { headers: getAuthHeaders() });
       showToast("Driver marked as paid ✓");
       fetchWallet();
     } catch {
@@ -125,7 +126,7 @@ const AdminDriverDetails = () => {
   const handleDebtSettlement = async () => {
     setDebtLoading(true);
     try {
-      await axios.post(`http://localhost:4000/admin/settle-driver-debt/${driverId}`, {}, { headers: getAuthHeaders() });
+      await axios.post(`${API_BASE_URL}/admin/settle-driver-debt/${driverId}`, {}, { headers: getAuthHeaders() });
       showToast("Driver debt cleared ✓");
       fetchWallet();
     } catch {
@@ -136,7 +137,7 @@ const AdminDriverDetails = () => {
 
   const handleApprove = async () => {
     try {
-      await axios.patch(`http://localhost:4000/admin/drivers/${driverId}/approve`, {}, { headers: getAuthHeaders() });
+      await axios.patch(`${API_BASE_URL}/admin/drivers/${driverId}/approve`, {}, { headers: getAuthHeaders() });
       await fetchDriver();
       showToast("Driver approved ✓");
     } catch {
@@ -148,11 +149,11 @@ const AdminDriverDetails = () => {
     try {
       if (!driver) return;
       if (driver.isSuspended) {
-        await axios.patch(`http://localhost:4000/admin/drivers/${driverId}/unsuspend`, {}, { headers: getAuthHeaders() });
-        try { await axios.patch(`http://localhost:4000/admin/drivers/${driverId}/approve`, {}, { headers: getAuthHeaders() }); } catch {}
+        await axios.patch(`${API_BASE_URL}/admin/drivers/${driverId}/unsuspend`, {}, { headers: getAuthHeaders() });
+        try { await axios.patch(`${API_BASE_URL}/admin/drivers/${driverId}/approve`, {}, { headers: getAuthHeaders() }); } catch {}
         showToast("Driver reinstated ✓");
       } else {
-        await axios.patch(`http://localhost:4000/admin/drivers/${driverId}/suspend`, {}, { headers: getAuthHeaders() });
+        await axios.patch(`${API_BASE_URL}/admin/drivers/${driverId}/suspend`, {}, { headers: getAuthHeaders() });
         showToast("Driver suspended", "warning");
       }
       await fetchDriver();
@@ -166,7 +167,7 @@ const AdminDriverDetails = () => {
     if (!deletePassword) return setDeleteError('Enter admin password to confirm');
     setDeleteLoading(true);
     try {
-      await axios.delete(`http://localhost:4000/admin/drivers/${driverId}`, { data: { password: deletePassword }, headers: getAuthHeaders() });
+      await axios.delete(`${API_BASE_URL}/admin/drivers/${driverId}`, { data: { password: deletePassword }, headers: getAuthHeaders() });
       showToast('Driver deleted ✓');
       setShowDeleteModal(false);
       navigate('/admin/drivers');
@@ -593,7 +594,7 @@ const AdminDriverDetails = () => {
           <div className="dd-hero">
             <div className="dd-avatar-wrap">
               {(() => {
-                const API = import.meta.env.VITE_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:4000'
+                const API = import.meta.env.VITE_BASE_URL || import.meta.env.VITE_API_URL || API_BASE_URL
                 let src = '/src/assests/logo.png'
                 if (driver && driver.profileImage) {
                   if (driver.profileImage.startsWith('http')) {

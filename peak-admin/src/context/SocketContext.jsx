@@ -1,9 +1,10 @@
 import React, { createContext, useEffect, useState } from 'react'
 import { io } from 'socket.io-client'
+import API_BASE_URL from '../config/api';
 
 export const SocketContext = createContext();
 
-const socket = io('http://localhost:4000', { transports: ['websocket'] });
+const socket = io(API_BASE_URL, { transports: ['websocket'] });
 export { socket };
 
 export default function SocketProvider({ children }){

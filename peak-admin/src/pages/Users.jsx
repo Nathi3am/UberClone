@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import API_BASE_URL from '../config/api';
 
 const StatCard = ({ title, value }) => (
   <div style={{
@@ -45,7 +46,7 @@ export default function AdminUsers() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const url = `http://localhost:4000/admin/users?page=${page}&limit=5${q ? `&q=${encodeURIComponent(q)}` : ''}`;
+      const url = `${API_BASE_URL}/admin/users?page=${page}&limit=5${q ? `&q=${encodeURIComponent(q)}` : ''}`;
       const res = await axios.get(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       setUsers(res.data.users || []);
       setTotalPages(res.data.totalPages || 1);
@@ -57,7 +58,7 @@ export default function AdminUsers() {
   const viewRides = async (userId) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(`http://localhost:4000/admin/users/${userId}/rides`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await axios.get(`${API_BASE_URL}/admin/users/${userId}/rides`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       setSelectedUserRides(res.data || []);
       setRidePage(1);
       setShowRides(true);
@@ -85,7 +86,7 @@ export default function AdminUsers() {
     try {
       setDeleteLoading(true);
       const token = localStorage.getItem('token');
-      const url = `http://localhost:4000/admin/users/${userToDelete._id}`;
+      const url = `${API_BASE_URL}/admin/users/${userToDelete._id}`;
       const resp = await axios.delete(url, { data: { password: deletePassword }, headers: token ? { Authorization: `Bearer ${token}` } : {} });
       setUsers(prev => prev.filter(u => u._id !== userToDelete._id));
       setShowDeleteModal(false);

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from 'react'
 import axios from 'axios'
 import { SocketContext } from '../context/SocketContext'
+import API_BASE_URL from '../config/api';
 
 export default function DeletedProfiles(){
   const [loading, setLoading] = useState(true)
@@ -20,7 +21,7 @@ export default function DeletedProfiles(){
     const load = async () => {
       setLoading(true)
       try {
-        const res = await axios.get('http://localhost:4000/admin/audits?limit=200', { headers: getAuthHeaders() })
+        const res = await axios.get(`${API_BASE_URL}/admin/audits?limit=200`, { headers: getAuthHeaders() })
         if (!mounted) return
         setAudits(res.data.audits || [])
       } catch (e) {

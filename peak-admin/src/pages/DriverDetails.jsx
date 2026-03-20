@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from 'react'
 import axios from 'axios'
 import { useParams, Link } from 'react-router-dom'
+import API_BASE_URL from '../config/api';
 
 export default function DriverDetails(){
   const { driverId } = useParams()
@@ -15,7 +16,7 @@ export default function DriverDetails(){
       setError(null)
       try{
         const token = localStorage.getItem('token')
-        const res = await axios.get(`http://localhost:4000/admin/driver/${driverId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+        const res = await axios.get(`${API_BASE_URL}/admin/driver/${driverId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
         if(!mounted) return
         setData(res.data)
       }catch(e){

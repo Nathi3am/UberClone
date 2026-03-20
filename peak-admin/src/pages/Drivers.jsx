@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Link } from 'react-router-dom'
+import API_BASE_URL from '../config/api';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
@@ -263,7 +264,7 @@ export default function Drivers() {
       try {
         setLoading(true); setError(null)
         const token = localStorage.getItem('token')
-        const res = await axios.get(`http://localhost:4000/admin/drivers/pending?page=${page}&limit=5`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+        const res = await axios.get(`${API_BASE_URL}/admin/drivers/pending?page=${page}&limit=5`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
         if (!mounted) return
         setPendingDrivers(res.data?.drivers || [])
         setPendingTotalPages(res.data?.totalPages || 1)
@@ -282,7 +283,7 @@ export default function Drivers() {
       try {
         setLoading(true); setError(null)
         const token = localStorage.getItem('token')
-        const res = await axios.get(`http://localhost:4000/admin/drivers/approved?page=${page}&limit=5`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+        const res = await axios.get(`${API_BASE_URL}/admin/drivers/approved?page=${page}&limit=5`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
         if (!mounted) return
         setApprovedDrivers(res.data?.drivers || [])
         setApprovedTotalPages(res.data?.totalPages || 1)
@@ -299,7 +300,7 @@ export default function Drivers() {
     setApprovingId(driverId)
     try {
       const token = localStorage.getItem('token')
-      await axios.patch(`http://localhost:4000/admin/drivers/${driverId}/approve`, {}, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      await axios.patch(`${API_BASE_URL}/admin/drivers/${driverId}/approve`, {}, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       setPendingDrivers(prev => prev.filter(d => d._id !== driverId))
     } catch (e) {
       console.error('approve failed', e)
@@ -332,7 +333,7 @@ export default function Drivers() {
             <tr key={driver._id}>
               <td>
                 {(() => {
-                  const API = import.meta.env.VITE_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:4000'
+                  const API = import.meta.env.VITE_BASE_URL || import.meta.env.VITE_API_URL || API_BASE_URL
                   let src = '/src/assests/logo.png'
                   if (driver.profileImage) {
                     if (driver.profileImage.startsWith('http')) {

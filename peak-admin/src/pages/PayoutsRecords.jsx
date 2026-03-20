@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
+import API_BASE_URL from '../config/api';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
@@ -206,7 +207,7 @@ export default function PayoutsRecords() {
       setLoading(true); setError(null);
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:4000/admin/payouts', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const res = await axios.get(`${API_BASE_URL}/admin/payouts`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
         if (!mounted) return;
         setPayouts(Array.isArray(res.data) ? res.data : []);
       } catch {

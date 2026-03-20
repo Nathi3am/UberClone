@@ -3,6 +3,7 @@ import axios from 'axios'
 import { Link } from 'react-router-dom'
 import { SocketContext } from '../context/SocketContext'
 import Toast from '../components/Toast'
+import API_BASE_URL from '../config/api';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap');
@@ -276,7 +277,7 @@ export default function Dashboard() {
     setLoading(true); setError(null)
     try {
       const token = localStorage.getItem('token')
-      const res = await axios.get('http://localhost:4000/admin/stats', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      const res = await axios.get(`${API_BASE_URL}/admin/stats`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       setStats(mapServerToClient(res.data || {}))
     } catch (err) {
       setError('Unable to load stats')
@@ -301,7 +302,7 @@ export default function Dashboard() {
         if (typeof stats.completedToday === 'undefined' || stats.completedToday === null) {
           try {
             const token = localStorage.getItem('token')
-            const resLive = await axios.get('http://localhost:4000/admin/dashboard-stats', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+            const resLive = await axios.get(`${API_BASE_URL}/admin/dashboard-stats`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
             if (!mounted) return
             if (resLive?.data?.completedToday !== undefined)
               setStats(s => ({ ...(s || {}), completedToday: resLive.data.completedToday }))
@@ -310,7 +311,7 @@ export default function Dashboard() {
         if (typeof stats.platformTotalCommission === 'undefined' || stats.platformTotalCommission === 0) {
           try {
             const token = localStorage.getItem('token')
-            const res = await axios.get('http://localhost:4000/admin/all-rides', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+            const res = await axios.get(`${API_BASE_URL}/admin/all-rides`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
             if (!mounted) return
             const rides = Array.isArray(res.data) ? res.data : (res.data.rides || [])
             const sum = rides.reduce((acc, r) => acc + (Number(r.platformCommission ?? r.commission ?? 0) || 0), 0)

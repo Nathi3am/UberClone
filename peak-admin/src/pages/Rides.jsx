@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
+import API_BASE_URL from '../config/api';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
@@ -151,7 +152,7 @@ export default function Rides() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    axios.get('http://localhost:4000/admin/rides', { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(`${API_BASE_URL}/admin/rides`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => { setRides(r.data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);

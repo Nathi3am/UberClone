@@ -4,6 +4,7 @@ import logo from '../assests/logo.png';
 import { SocketContext } from '../context/SocketContext'
 import axios from 'axios'
 import Toast from '../components/Toast'
+import API_BASE_URL from '../config/api';
 
 export default function AdminLayout() {
   const { newDeletedCount } = useContext(SocketContext) || {};
@@ -19,7 +20,7 @@ export default function AdminLayout() {
         return;
       }
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:4000/admin/reset-dashboard', { password: resetPassword }, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      await axios.post(`${API_BASE_URL}/admin/reset-dashboard`, { password: resetPassword }, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       setShowResetModal(false);
       setResetPassword('');
       showToast('Dashboard reset successfully');

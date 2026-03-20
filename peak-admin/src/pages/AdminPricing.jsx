@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import API_BASE_URL from '../config/api';
 
 export default function AdminPricing(){
   const [pricePerKm, setPricePerKm] = useState('');
@@ -12,7 +13,7 @@ export default function AdminPricing(){
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:4000/admin/pricing', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const res = await axios.get(`${API_BASE_URL}/admin/pricing`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
         if (cancelled) return;
         const payload = res && res.data ? res.data : {};
         setPricePerKm((payload.pricePerKm !== undefined && payload.pricePerKm !== null) ? String(payload.pricePerKm) : '');
@@ -31,7 +32,7 @@ export default function AdminPricing(){
     try{
       setLoading(true)
       const token = localStorage.getItem('token')
-      await axios.patch('http://localhost:4000/admin/pricing', { pricePerKm: Number(pricePerKm), baseFare: Number(baseFare) }, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      await axios.patch(`${API_BASE_URL}/admin/pricing`, { pricePerKm: Number(pricePerKm), baseFare: Number(baseFare) }, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       alert('Price updated successfully')
     }catch(e){
       console.error('update failed', e)
