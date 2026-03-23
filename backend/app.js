@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
 
 const app = express();
 const connectToDb = require('./db/db');
@@ -149,3 +150,19 @@ try {
 }
 
 module.exports = app;
+
+// Global error handler - catch Multer file-size errors and other unhandled errors.
+app.use((err, req, res, next) => {
+    if (!err) return next();
+
+    // Multer file size / limit errors
+    const isMulterError = err instanceof multer.MulterError || (err && (err.code === 'LIMIT_FILE_SIZE' || /file too large/i.test(err.message || '')));
+    if (isMulterError) {
+        console.warn('[error] Multer file size limit:', err && err.message ? err.message : err);
+        return res.status(413).json({ message: 'Uploaded file too large. Maximum allowed size is 100MB.' });
+    }
+
+    // For other errors, log and return generic 500 to avoid leaking internals.
+    console.error('[error] Unhandled error:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ message: 'Internal server error' });
+});

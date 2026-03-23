@@ -159,9 +159,16 @@ export default function LetsEatLocal(){
     if (!files || !files.length) return
     const allowed = 5 - images.length
     if (allowed <= 0) return
+    const MAX_BYTES = 100 * 1024 * 1024 // 100MB
     const toAdd = files.slice(0, allowed)
-    const mapped = toAdd.map(f => ({ id: Date.now() + Math.random(), file: f, url: URL.createObjectURL(f) }))
-    setImages(prev => [...prev, ...mapped])
+    const oversized = toAdd.filter(f => f.size > MAX_BYTES)
+    const acceptable = toAdd.filter(f => f.size <= MAX_BYTES)
+    if (oversized && oversized.length) {
+      const names = oversized.map(f => f.name).slice(0,5).join(', ')
+      alert(`Some files were skipped because they exceed the 100MB limit: ${names}`)
+    }
+    const mapped = acceptable.map(f => ({ id: Date.now() + Math.random(), file: f, url: URL.createObjectURL(f) }))
+    if (mapped.length) setImages(prev => [...prev, ...mapped])
   }
 
   const onDrop = (e) => {

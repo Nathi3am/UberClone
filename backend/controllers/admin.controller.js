@@ -10,6 +10,7 @@ const Audit = require('../models/audit.model');
 const { sendMessageToSocketId } = require('../socket');
 const { uploadToCloudinary } = require('../config/cloudinary');
 const Vendor = require('../models/vendor.model');
+const mongoose = require('mongoose');
 
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
@@ -656,6 +657,8 @@ exports.createVendor = async (req, res) => {
 exports.updateVendor = async (req, res) => {
   try {
     const id = req.params.id;
+    // guard against non-ObjectId local IDs (e.g., local-12345) which will cause Mongoose CastError
+    if (!mongoose.isValidObjectId(id)) return res.status(404).json({ message: 'Vendor not found' });
     const vendor = await Vendor.findById(id);
     if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
@@ -692,6 +695,8 @@ exports.updateVendor = async (req, res) => {
 exports.deleteVendor = async (req, res) => {
   try {
     const id = req.params.id;
+    // ignore requests that use local-only IDs created by the admin UI fallback
+    if (!mongoose.isValidObjectId(id)) return res.status(404).json({ message: 'Vendor not found' });
     const v = await Vendor.findByIdAndDelete(id);
     if (!v) return res.status(404).json({ message: 'Vendor not found' });
     return res.json({ message: 'Vendor deleted' });
