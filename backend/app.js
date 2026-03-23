@@ -16,6 +16,7 @@ const mapRoutes = require('./routes/maps.routes');
 const rideRoutes = require('./routes/ride.routes');
 const adminRoutes = require('./routes/admin.routes');
 const specialTripsDriverRoutes = require('./routes/specialTripsDriver.routes');
+const vendorsRoutes = require('./routes/vendors.routes');
 // dev routes (testing only)
 let devRoutes = null;
 try { devRoutes = require('./routes/dev.routes'); } catch (e) { devRoutes = null; }
@@ -107,6 +108,7 @@ app.use('/captain', captainRoutes);
 app.use('/maps', mapRoutes);
 app.use('/rides', rideRoutes);
 app.use('/admin', adminRoutes);
+app.use('/vendors', vendorsRoutes);
 app.use('/admin/special-trips-drivers', specialTripsDriverRoutes);
 // Proxy OTP routes to the internal OTP server (keeps frontend using single backend URL)
 try {
