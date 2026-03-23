@@ -22,11 +22,11 @@ const UserSignup = () => {
 
   const [userData, setUserData] = useState({});
 
-  // Auto-prefill test otp on localhost for easier dev testing.
+  // Auto-prefill test otp on dev environment for easier dev testing.
   useEffect(() => {
     try {
       const host = typeof window !== "undefined" ? window.location.hostname : null;
-      if (host === "localhost" || host === "127.0.0.1") {
+      if (host === "vexomove.onrender.com") {
         const testOtp = import.meta.env.VITE_TEST_OTP || "";
         if (testOtp) {
           // OTPFlow handles test OTP; nothing to set here in signup

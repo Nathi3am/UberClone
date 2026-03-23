@@ -34,7 +34,7 @@ export default defineConfig({
     proxy: {
       // forward /api calls to the main backend running on port 5000
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://vexomove.onrender.com',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, '/api')

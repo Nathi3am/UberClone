@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ActiveTripCard = ({ trip = {}, onEnd, onNavigate, onChat, onSimulate, simulateActive, onSimulateDropoff, simulateDropoffActive }) => {
+const ActiveTripCard = ({ trip = {}, onEnd, onNavigate, onChat }) => {
   // Support multiple ride object shapes: legacy fields and populated DB ride
   const passengerName = trip.passengerName || (trip.user && (
     (trip.user.fullname && (trip.user.fullname.firstname ? `${trip.user.fullname.firstname} ${trip.user.fullname.lastname || ''}` : trip.user.fullname))
@@ -51,12 +51,6 @@ const ActiveTripCard = ({ trip = {}, onEnd, onNavigate, onChat, onSimulate, simu
       <div className="mt-4 flex gap-3">
         <button onClick={() => { if (typeof onChat === 'function') onChat(trip); }} className="flex-1 text-center px-4 py-2 rounded-xl bg-indigo-600">Chat</button>
         <button onClick={navigateToPickup} className="flex-1 text-center px-4 py-2 rounded-xl bg-emerald-600">Navigate</button>
-        {typeof onSimulate === 'function' && (
-          <button onClick={() => onSimulate(trip)} className={`px-4 py-2 rounded-xl ${simulateActive ? 'bg-yellow-500' : 'bg-yellow-600'}`}>{simulateActive ? 'Stop Simulation' : 'Simulate Drive'}</button>
-        )}
-        {typeof onSimulateDropoff === 'function' && (
-          <button onClick={() => onSimulateDropoff(trip)} className={`px-4 py-2 rounded-xl ${simulateDropoffActive ? 'bg-orange-500' : 'bg-orange-600'}`}>{simulateDropoffActive ? 'Stop Drop-off' : 'Simulate Drop-off'}</button>
-        )}
         <button onClick={onEnd} className="px-4 py-2 rounded-xl bg-red-600">End</button>
       </div>
     </div>

@@ -25,18 +25,50 @@ const LiveTracking = ({ ride, role, onEta, simulatedDriverPosition, availableDri
   const [eta, setEta] = useState(null);
   const [directions, setDirections] = useState(null);
   const [polylinePath, setPolylinePath] = useState(null);
+  const [heading, setHeading] = useState(0);
   const { socket } = useContext(SocketContext || {});
   const mapRef = useRef(null);
   const animRef = useRef(null);
+  const prevPosRef = useRef(null);
+  const smoothPosRef = useRef(null);
+  const smoothAnimRef = useRef(null);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   if (!apiKey) {
     console.error("Google Maps API key missing. Please add VITE_GOOGLE_MAPS_API_KEY to your .env file");
   }
 
+  // ─── Bearing calculator ───
+  const computeBearing = (from, to) => {
+    if (!from || !to) return 0;
+    const toRad = (d) => (d * Math.PI) / 180;
+    const toDeg = (r) => (r * 180) / Math.PI;
+    const dLng = toRad(to.lng - from.lng);
+    const y = Math.sin(dLng) * Math.cos(toRad(to.lat));
+    const x = Math.cos(toRad(from.lat)) * Math.sin(toRad(to.lat)) -
+              Math.sin(toRad(from.lat)) * Math.cos(toRad(to.lat)) * Math.cos(dLng);
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
+  };
+
   const [mapsLoaded, setMapsLoaded] = useState(
     typeof window !== "undefined" && window.google && window.google.maps
   );
+
+  // ─── Google-Maps-style blue navigation arrow as data URL ───
+  const navArrowIcon = useRef(null);
+  useEffect(() => {
+    if (!window.google?.maps) return;
+    // Blue arrow with white border — Google Maps navigation style
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="22" fill="#4285F4" stroke="white" stroke-width="3"/>
+      <path d="M24 10 L32 32 L24 27 L16 32 Z" fill="white"/>
+    </svg>`;
+    navArrowIcon.current = {
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+      scaledSize: new window.google.maps.Size(44, 44),
+      anchor: new window.google.maps.Point(22, 22),
+    };
+  }, [mapsLoaded]);
 
   useEffect(() => {
     let mounted = true;
@@ -61,7 +93,40 @@ const LiveTracking = ({ ride, role, onEta, simulatedDriverPosition, availableDri
 
     const handlePositionUpdate = (position) => {
       const { latitude, longitude } = position.coords;
-      setCurrentPosition({ lat: latitude, lng: longitude });
+      const newPos = { lat: latitude, lng: longitude };
+      
+      // Compute heading from previous position
+      if (prevPosRef.current) {
+        const dist = Math.abs(newPos.lat - prevPosRef.current.lat) + Math.abs(newPos.lng - prevPosRef.current.lng);
+        if (dist > 0.00005) { // only update heading if moved enough (~5m)
+          const bear = computeBearing(prevPosRef.current, newPos);
+          setHeading(bear);
+        }
+      }
+      prevPosRef.current = newPos;
+
+      // Smooth animate position transition
+      if (smoothPosRef.current && role === 'captain') {
+        const startPos = { ...smoothPosRef.current };
+        const endPos = newPos;
+        const dur = 1000;
+        let startTime = null;
+        if (smoothAnimRef.current) cancelAnimationFrame(smoothAnimRef.current);
+        const step = (ts) => {
+          if (!startTime) startTime = ts;
+          const t = Math.min((ts - startTime) / dur, 1);
+          const interpLat = startPos.lat + (endPos.lat - startPos.lat) * t;
+          const interpLng = startPos.lng + (endPos.lng - startPos.lng) * t;
+          const interpPos = { lat: interpLat, lng: interpLng };
+          smoothPosRef.current = interpPos;
+          setCurrentPosition(interpPos);
+          if (t < 1) smoothAnimRef.current = requestAnimationFrame(step);
+        };
+        smoothAnimRef.current = requestAnimationFrame(step);
+      } else {
+        smoothPosRef.current = newPos;
+        setCurrentPosition(newPos);
+      }
       setIsLoading(false);
     };
 
@@ -104,6 +169,7 @@ const LiveTracking = ({ ride, role, onEta, simulatedDriverPosition, availableDri
     return () => {
       active = false;
       clearDeviceWatch(watchId).catch(() => {});
+      if (smoothAnimRef.current) cancelAnimationFrame(smoothAnimRef.current);
     };
   }, []);
 
@@ -171,12 +237,24 @@ const LiveTracking = ({ ride, role, onEta, simulatedDriverPosition, availableDri
   // Auto-pan map when driver location updates (follow driver)
   useEffect(() => {
     if (!driverLocation || !mapRef.current) return;
+    if (navMode) return; // nav mode has its own follow logic
     try {
       if (mapRef.current && typeof mapRef.current.panTo === 'function') {
         mapRef.current.panTo({ lat: driverLocation.lat, lng: driverLocation.lng });
       }
     } catch (e) {}
   }, [driverLocation]);
+
+  // In nav mode, follow captain's GPS position and rotate map to heading
+  useEffect(() => {
+    if (!navMode || role !== 'captain' || !currentPosition || !mapRef.current) return;
+    try {
+      mapRef.current.panTo(currentPosition);
+      // Tilt the map for a navigation feel
+      if (typeof mapRef.current.setTilt === 'function') mapRef.current.setTilt(45);
+      if (typeof mapRef.current.setHeading === 'function') mapRef.current.setHeading(heading);
+    } catch (e) {}
+  }, [currentPosition, heading, navMode, role]);
 
   // Fit map to route polyline once when it becomes available
   useEffect(() => {
@@ -215,10 +293,29 @@ const LiveTracking = ({ ride, role, onEta, simulatedDriverPosition, availableDri
       center={fallbackCenter}
       onLoad={(map) => { mapRef.current = map; }}
       onUnmount={() => { mapRef.current = null; }}
-      zoom={navMode ? 17 : 15}
-      options={{ mapTypeControl: false, fullscreenControl: false, zoomControl: !navMode }}
+      zoom={navMode ? 18 : 15}
+      options={{
+        mapTypeControl: false,
+        fullscreenControl: false,
+        zoomControl: !navMode,
+        streetViewControl: false,
+        ...(navMode ? { tilt: 45, heading: heading, gestureHandling: 'greedy' } : {}),
+      }}
     >
-      {currentPosition && <Marker position={currentPosition} />}
+      {/* Captain's own position — blue nav arrow in nav mode, default marker otherwise */}
+      {currentPosition && role === 'captain' && navMode && navArrowIcon.current && (
+        <Marker
+          position={currentPosition}
+          icon={{
+            ...navArrowIcon.current,
+            rotation: heading,
+          }}
+          zIndex={9999}
+        />
+      )}
+      {currentPosition && !(role === 'captain' && navMode) && (
+        <Marker position={currentPosition} />
+      )}
       {Array.isArray(availableDrivers) && availableDrivers.map((driver) => {
         const lat = driver.location?.lat || driver.lat || driver.ltd || null;
         const lng = driver.location?.lng || driver.lng || driver.lng || null;

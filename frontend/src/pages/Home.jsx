@@ -269,7 +269,7 @@ function Home() {
             }
           } catch (e) {}
         }
-        alert('Unable to get current location. Make sure location services are enabled and this page is served over HTTPS or localhost.');
+        alert('Unable to get current location. Make sure location services are enabled and this page is served over HTTPS or https://vexomove.onrender.com.');
       } catch (e) {
         alert('Unable to get current location');
       }

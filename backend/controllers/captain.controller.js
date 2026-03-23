@@ -147,6 +147,8 @@ module.exports.savePushToken = async (req, res, next) => {
             return res.status(400).json({ message: 'pushToken is required' });
         }
 
+        console.log(`[push-token] Saving FCM token for captain ${req.captain._id}: ${pushToken.substring(0, 20)}...`);
+
         await captainModel.findByIdAndUpdate(
             req.captain._id,
             { $addToSet: { pushTokens: pushToken } },
@@ -155,6 +157,7 @@ module.exports.savePushToken = async (req, res, next) => {
 
         return res.status(200).json({ success: true });
     } catch (error) {
+        console.error('[push-token] Failed to save push token:', error.message);
         return res.status(500).json({ message: 'Failed to save push token' });
     }
 }

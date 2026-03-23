@@ -78,10 +78,16 @@ const sendPush = async (tokens, title, body, data = {}) => {
     };
 
     try {
+        console.log(`[push] Sending to ${tokenList.length} token(s): title="${title}"`);
         const response = await messaging.sendEachForMulticast(message);
+        const succeeded = response.responses.filter(r => r.success).length;
         const failed = response.responses.filter(r => !r.success);
+        console.log(`[push] Result: ${succeeded} succeeded, ${failed.length} failed out of ${tokenList.length}`);
         if (failed.length > 0) {
-            console.warn(`[push] ${failed.length}/${tokenList.length} FCM send(s) failed`);
+            failed.forEach((f, i) => {
+                const errCode = f.error?.code || f.error?.message || 'unknown';
+                console.warn(`[push]   failed[${i}]: ${errCode}`);
+            });
         }
     } catch (err) {
         console.error('[push] FCM sendEachForMulticast error:', err && err.message ? err.message : err);

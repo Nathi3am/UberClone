@@ -12,6 +12,7 @@ const Sidebar = () => {
   const [resetPassword, setResetPassword] = useState('');
   const [toast, setToast] = useState(null);
   const { token } = useContext(AdminContext) || {};
+  const navigate = useNavigate();
   const links = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'drivers', label: 'Drivers', icon: '🚗' },
@@ -55,25 +56,51 @@ const Sidebar = () => {
             // Render Settings as a button that navigates so it behaves like an explicit action
             if (l.id === 'settings') return null; // render after nav links so it's visually separate
             return (
-              <NavLink
-                key={l.id}
-                to={`/admin/${l.id}`}
-                style={({ isActive }) => ({
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 12px',
-                  borderRadius: 12,
-                  textDecoration: 'none',
-                  color: isActive ? theme.colors.textPrimary : theme.colors.textSecondary,
-                  boxShadow: isActive ? `0 6px 18px ${theme.colors.accent}33` : 'none',
-                  background: isActive ? theme.glow : 'transparent',
-                  transition: 'all 180ms ease'
-                })}
-              >
-                <div style={{ width: 28, textAlign: 'center' }}>{l.icon}</div>
-                {!collapsed && <div style={{ fontWeight: 700, letterSpacing: 0.6 }}>{l.label}</div>}
-              </NavLink>
+              <div key={l.id}>
+                <NavLink
+                  to={`/admin/${l.id}`}
+                  style={({ isActive }) => ({
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '10px 12px',
+                    borderRadius: 12,
+                    textDecoration: 'none',
+                    color: isActive ? theme.colors.textPrimary : theme.colors.textSecondary,
+                    boxShadow: isActive ? `0 6px 18px ${theme.colors.accent}33` : 'none',
+                    background: isActive ? theme.glow : 'transparent',
+                    transition: 'all 180ms ease'
+                  })}
+                >
+                  <div style={{ width: 28, textAlign: 'center' }}>{l.icon}</div>
+                  {!collapsed && <div style={{ fontWeight: 700, letterSpacing: 0.6 }}>{l.label}</div>}
+                </NavLink>
+
+                {l.id === 'rides' && (
+                  <div style={{ marginTop: 8, paddingLeft: collapsed ? 0 : 40, paddingRight: 4 }}>
+                    <button
+                      onClick={() => navigate('/admin/lets-eat-local')}
+                      style={{
+                        width: '100%',
+                        padding: '9px 10px',
+                        borderRadius: 10,
+                        border: 'none',
+                        background: 'linear-gradient(90deg,#ff8a3d,#ff6a00)',
+                        color: '#071024',
+                        fontWeight: 800,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        cursor: 'pointer',
+                        boxShadow: '0 8px 28px rgba(255,138,61,0.14)'
+                      }}
+                    >
+                      <span style={{ width: 20, textAlign: 'center' }}>🍽️</span>
+                      {!collapsed && <span style={{ fontSize: 13 }}>lets eat local</span>}
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
 

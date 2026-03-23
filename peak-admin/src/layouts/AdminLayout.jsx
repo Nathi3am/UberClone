@@ -61,6 +61,12 @@ export default function AdminLayout() {
               </li>
               <li><NavLink to="/admin/special-requests" className={({isActive}) => isActive ? 'nav-link active muted' : 'nav-link muted'}>Special Requests</NavLink></li>
               <li><NavLink to="/admin/trips-drivers" className={({isActive}) => isActive ? 'nav-link active muted' : 'nav-link muted'}>Trips</NavLink></li>
+              <li style={{ marginTop: 6 }}>
+                <NavLink to="/admin/lets-eat-local" className={({isActive}) => isActive ? 'nav-link active subbtn' : 'nav-link subbtn'}>
+                  <span style={{ marginRight: 8 }}>🍽️</span>
+                  <span>lets eat local</span>
+                </NavLink>
+              </li>
               <li><NavLink to="/admin/settings" className={({isActive}) => isActive ? 'nav-link active muted' : 'nav-link muted'}>Settings</NavLink></li>
               <li style={{ marginTop: 12 }}>
                 <button className="reset-dashboard-btn" onClick={() => setShowResetModal(true)}>Reset Dashboard</button>

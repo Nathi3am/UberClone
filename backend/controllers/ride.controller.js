@@ -195,7 +195,14 @@ module.exports.createRide = async (req, res) => {
                     isApproved: true,
                     isOnline: true,
                     status: 'active',
-                }).select('_id pushTokens socketId').lean();
+                }).select('_id pushTokens socketId fullname').lean();
+
+                console.log(`[ride-push] Found ${onlineCaptains.length} online+approved+active captains`);
+                onlineCaptains.forEach(c => {
+                    const name = c.fullname?.firstname || c._id;
+                    const tkns = (c.pushTokens || []).length;
+                    console.log(`[ride-push]   captain=${name}, pushTokens=${tkns}`);
+                });
 
                 for (const captain of onlineCaptains) {
                     await sendRideRequestPushToCaptain(captain, rideDoc);

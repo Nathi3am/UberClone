@@ -282,6 +282,31 @@ const CaptainLogin = () => {
           transform: scale(1.025);
           box-shadow: 0 0 28px 6px rgba(59,130,246,0.85);
         }
+        .captain-login-page .lets-eat-local-btn {
+          width: 100%;
+          padding: 16px 18px;
+          border: none;
+          border-radius: 18px;
+          background: linear-gradient(135deg, #ff8a3d 0%, #ff6a00 45%, #ffb86b 100%);
+          color: #071024;
+          font-family: 'Outfit', sans-serif;
+          font-size: 15px;
+          font-weight: 800;
+          text-transform: none;
+          letter-spacing: 0.6px;
+          cursor: pointer;
+          box-shadow: 0 10px 40px rgba(255,138,61,0.22), inset 0 -6px 20px rgba(0,0,0,0.08);
+          transition: transform 0.18s, box-shadow 0.18s, filter 0.18s;
+          display: flex; align-items: center; justify-content: center; gap: 12px;
+          animation: eatPulse 3s ease-in-out infinite 0.6s;
+        }
+        .captain-login-page .lets-eat-local-btn:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 28px 80px rgba(255,138,61,0.28); filter: saturate(1.08); }
+        .captain-login-page .lets-eat-local-btn:active { transform: translateY(0) scale(0.995); box-shadow: 0 8px 26px rgba(255,138,61,0.18); }
+        .captain-login-page .lets-eat-local-btn .led-text { display: flex; flex-direction: column; line-height: 1; align-items: flex-start; }
+        .captain-login-page .lets-eat-local-btn .led-title { font-size: 15px; font-weight: 800; text-transform: none; color: #071024; }
+        .captain-login-page .lets-eat-local-btn .led-sub { font-size: 11px; color: rgba(7,16,36,0.6); font-weight: 600; margin-top: 2px; }
+        .captain-login-page .lets-eat-local-btn .led-icon { font-size: 20px; display: inline-block; transform: translateY(1px); }
+        @keyframes eatPulse { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
         @keyframes glowPulseBlue {
           0%,100% { box-shadow: 0 0 6px 0 rgba(59,130,246,0.6); transform: scale(1); }
           50% { box-shadow: 0 0 26px 6px rgba(59,130,246,0.95); transform: scale(1.045); }
@@ -510,6 +535,15 @@ const CaptainLogin = () => {
                 <p style={{ textAlign: "center", marginTop: 8 }}>
                   <button className="special-request-btn" onClick={() => navigate('/special-requests')}>
                     Special Requests
+                  </button>
+                </p>
+                <p style={{ textAlign: "center", marginTop: 8 }}>
+                  <button className="lets-eat-local-btn" onClick={() => navigate('/lets-eat-local')}>
+                    <span className="led-icon">🍽️</span>
+                    <span className="led-text">
+                      <span className="led-title">lets eat local</span>
+                      <span className="led-sub">Support nearby eateries</span>
+                    </span>
                   </button>
                 </p>
               </form>

@@ -9,6 +9,7 @@ const path = require('path');
 const Audit = require('../models/audit.model');
 const { sendMessageToSocketId } = require('../socket');
 const { uploadToCloudinary } = require('../config/cloudinary');
+const Vendor = require('../models/vendor.model');
 
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
@@ -602,6 +603,101 @@ exports.getRidesTab = async (req, res) => {
   } catch (err) {
     console.error('getRidesTab error:', err);
     return res.status(500).json({ message: 'Error fetching rides' });
+  }
+};
+
+// Vendors (Lets Eat Local) CRUD
+exports.getVendors = async (req, res) => {
+  try {
+    const list = await Vendor.find().sort({ createdAt: -1 }).lean();
+    return res.json(list);
+  } catch (e) {
+    console.error('getVendors error', e);
+    return res.status(500).json({ message: 'Error fetching vendors' });
+  }
+};
+
+exports.createVendor = async (req, res) => {
+  try {
+    const { name, phone, menuItems, weeklyHours, existingImages } = req.body || {};
+    if (!name) return res.status(400).json({ message: 'Vendor name required' });
+
+    const files = req.files || [];
+    const images = [];
+
+    // keep any existing image URLs passed from client
+    if (existingImages) {
+      try {
+        const parsed = typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages;
+        if (Array.isArray(parsed)) parsed.forEach(u => images.push({ url: u }));
+      } catch (e) {}
+    }
+
+    for (const f of files) {
+      try {
+        const result = await uploadToCloudinary(f.buffer, 'lets-eat-local');
+        images.push({ url: result.secure_url || result.url, public_id: result.public_id });
+      } catch (e) {
+        console.warn('image upload failed', e && e.message);
+      }
+    }
+
+    const parsedMenu = (menuItems && typeof menuItems === 'string') ? JSON.parse(menuItems) : (menuItems || []);
+    const parsedHours = (weeklyHours && typeof weeklyHours === 'string') ? JSON.parse(weeklyHours) : (weeklyHours || []);
+
+    const vendor = await Vendor.create({ name, phone, menuItems: parsedMenu, images, weeklyHours: parsedHours });
+    return res.json({ message: 'Vendor created', vendor });
+  } catch (err) {
+    console.error('createVendor error', err);
+    return res.status(500).json({ message: 'Error creating vendor' });
+  }
+};
+
+exports.updateVendor = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const vendor = await Vendor.findById(id);
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    const { name, phone, menuItems, weeklyHours, existingImages } = req.body || {};
+    if (name) vendor.name = name;
+    if (phone) vendor.phone = phone;
+
+    if (menuItems) vendor.menuItems = typeof menuItems === 'string' ? JSON.parse(menuItems) : menuItems;
+    if (weeklyHours) vendor.weeklyHours = typeof weeklyHours === 'string' ? JSON.parse(weeklyHours) : weeklyHours;
+
+    // preserve any existing images client sent, then append newly uploaded ones
+    const keep = [];
+    if (existingImages) {
+      try { const parsed = typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages; if (Array.isArray(parsed)) parsed.forEach(u => keep.push({ url: u })); } catch (e) {}
+    }
+
+    const files = req.files || [];
+    for (const f of files) {
+      try {
+        const result = await uploadToCloudinary(f.buffer, 'lets-eat-local');
+        keep.push({ url: result.secure_url || result.url, public_id: result.public_id });
+      } catch (e) { console.warn('image upload failed', e && e.message); }
+    }
+
+    vendor.images = keep;
+    await vendor.save();
+    return res.json({ message: 'Vendor updated', vendor });
+  } catch (err) {
+    console.error('updateVendor error', err);
+    return res.status(500).json({ message: 'Error updating vendor' });
+  }
+};
+
+exports.deleteVendor = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const v = await Vendor.findByIdAndDelete(id);
+    if (!v) return res.status(404).json({ message: 'Vendor not found' });
+    return res.json({ message: 'Vendor deleted' });
+  } catch (err) {
+    console.error('deleteVendor error', err);
+    return res.status(500).json({ message: 'Error deleting vendor' });
   }
 };
 

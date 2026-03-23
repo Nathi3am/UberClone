@@ -19,7 +19,7 @@ const CaptainHome = () => {
   const { captain } = useContext(CaptainDataContext);
   const { socket } = useContext(SocketContext);
   // Use centralized API base URL
-  // `API` imported from `src/config/api.js` resolves VITE_BASE_URL -> VITE_API_URL -> localhost
+  // `API` imported from `src/config/api.js` resolves VITE_BASE_URL -> VITE_API_URL -> https://vexomove.onrender.com
 
   const [isOnline, setIsOnline] = useState(false);
   const [tripActive, setTripActive] = useState(false);
@@ -541,6 +541,31 @@ const CaptainHome = () => {
     setNavActive(true);
   };
 
+  // Handle arrival at navigation target — auto-navigate pickup→dropoff
+  const handleNavArrived = (label) => {
+    if (label === 'Pickup' || label === 'Pick-up location') {
+      // Arrived at pickup — auto-start navigation to drop-off
+      if (currentRide) {
+        const dc = getCoord(currentRide, ['dropCoords', 'dropoffCoords', 'dropoff', 'dropoff_location', 'destination', 'destinationCoords', 'drop']);
+        if (dc && dc.lat && dc.lng) {
+          setNavActive(false);
+          setTimeout(() => {
+            startInAppNavigation(dc.lat, dc.lng, 'Drop-off location');
+          }, 2000);
+          return;
+        }
+      }
+      setNavActive(false);
+      setNavTargetCoords(null);
+      setNavRoutePolyline(null);
+    } else {
+      // Arrived at drop-off — close navigation
+      setNavActive(false);
+      setNavTargetCoords(null);
+      setNavRoutePolyline(null);
+    }
+  };
+
   // Handle route data from NavigationBar
   const handleNavRouteUpdate = (routeData) => {
     if (routeData?.polyline) {
@@ -892,6 +917,7 @@ const CaptainHome = () => {
   
 
   return (
+    <>
     <div className="min-h-screen w-screen text-white p-4">
       <div className="max-w-4xl mx-auto">
         {/* Driver Header */}
@@ -984,13 +1010,14 @@ const CaptainHome = () => {
         </div>
 
         {/* Live map for captain */}
-        <div className={`${navActive ? 'h-[65vh]' : 'h-[45vh]'} w-full rounded-2xl bg-black/20 backdrop-blur-md mb-4 border border-white/10 overflow-hidden relative transition-all duration-300`}>
+        <div className="h-[45vh] w-full rounded-2xl bg-black/20 backdrop-blur-md mb-4 border border-white/10 overflow-hidden relative transition-all duration-300">
           <LiveTracking ride={currentRide} role="captain" simulatedDriverPosition={simulatedDriverPosition} navDestination={navActive ? navTargetCoords : null} navMode={navActive} />
-          {navActive && navTargetCoords && (
+          {navActive && (
             <NavigationBar
               targetCoords={navTargetCoords}
               targetLabel={navTargetLabel}
               onRouteUpdate={handleNavRouteUpdate}
+              onArrived={handleNavArrived}
               onClose={() => { setNavActive(false); setNavTargetCoords(null); setNavRoutePolyline(null); }}
             />
           )}
@@ -1133,10 +1160,6 @@ const CaptainHome = () => {
                 }
               }}
               onChat={(trip) => { setCurrentRide(trip); setShowChat(true); }}
-              onSimulate={(trip) => handleSimulate(trip)}
-              simulateActive={simulateActive}
-              onSimulateDropoff={(trip) => handleSimulateDropoff(trip)}
-              simulateDropoffActive={simulateDropoffActive}
             />
             {showChat && currentRide && (
               <RideChat socket={socket} ride={currentRide} user={captain} otherUser={currentRide.user} initialMessages={bufferedChatMessages} onOpen={() => setBufferedChatMessages([])} onClose={() => setShowChat(false)} />
@@ -1165,7 +1188,8 @@ const CaptainHome = () => {
 
       <DriverBottomNav />
     </div>
+    </>
   );
-};
+}
 
 export default CaptainHome;

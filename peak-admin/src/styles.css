@@ -81,6 +81,21 @@ body {
 	display: inline-block;
 }
 
+/* Small sub-button under Trips */
+.sidebar .subbtn {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	color: #cbd5e1;
+	background: linear-gradient(90deg,#ff8a3d,#ff6a00);
+	box-shadow: 0 6px 22px rgba(255,138,61,0.12);
+	text-decoration: none;
+	font-weight: 700;
+}
+.sidebar .subbtn:hover { transform: translateY(-1px); color: #071024; }
+
 /* Reset Dashboard button */
 .reset-dashboard-btn {
 	display: inline-block;

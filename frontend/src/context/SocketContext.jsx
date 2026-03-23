@@ -8,7 +8,7 @@ export const SocketContext = createContext();
 
 // Resolve socket URL from env or fallback to backend API URL.
 // Using window.location.origin here caused the client dev server origin
-// to be used (eg http://localhost:5173) which is NOT the socket server
+// to be used (eg https://vexomove.onrender.com) which is NOT the socket server
 // and leads to connection errors when running multiple frontends.
 const SOCKET_URL = API_BASE_URL;
 console.log('[socket] connecting to', SOCKET_URL);

@@ -16,6 +16,7 @@ import Earnings from './pages/Earnings'
 import PayoutsRecords from './pages/PayoutsRecords'
 // ...existing code...
 import TripsDrivers from './pages/TripsDrivers'
+import LetsEatLocal from './pages/LetsEatLocal'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminLayout from './layouts/AdminLayout'
 
@@ -34,6 +35,7 @@ export default function App(){
           <Route path="deleted-profiles" element={<ProtectedRoute><DeletedProfiles/></ProtectedRoute>} />
           <Route path="special-requests" element={<ProtectedRoute><SpecialRequests/></ProtectedRoute>} />
           <Route path="trips-drivers" element={<ProtectedRoute><TripsDrivers/></ProtectedRoute>} />
+          <Route path="lets-eat-local" element={<ProtectedRoute><LetsEatLocal/></ProtectedRoute>} />
 // ...existing code...
           <Route path="settings" element={<ProtectedRoute><Settings/></ProtectedRoute>} />
           <Route path="commission" element={<ProtectedRoute><Commission/></ProtectedRoute>} />
