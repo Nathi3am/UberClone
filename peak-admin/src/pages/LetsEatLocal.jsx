@@ -83,6 +83,19 @@ export default function LetsEatLocal(){
 
       images.forEach(i => { if (i.file) form.append('images', i.file) })
 
+      // Debug: log preview object and FormData contents to help verify what's sent
+      try {
+        const preview = { name, phone, website, address, social, menuItems, weeklyHours, imagesCount: images.length, existingImages: existing }
+        console.log('[admin-ui:saveVendor] preview payload:', preview)
+        for (const entry of form.entries()) {
+          // files will appear as File objects; log their field name and type/size when available
+          const key = entry[0]
+          const val = entry[1]
+          if (val && val instanceof File) console.log('[admin-ui:FormData]', key, val.name, val.type, val.size)
+          else console.log('[admin-ui:FormData]', key, val)
+        }
+      } catch (e) { console.warn('saveVendor debug log failed', e) }
+
       let res
       if (selectedVendorId) {
         res = await api.patch(`/admin/vendors/${selectedVendorId}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
