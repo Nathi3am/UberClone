@@ -650,6 +650,11 @@ exports.createVendor = async (req, res) => {
       try { parsedSocial = typeof social === 'string' ? JSON.parse(social) : social; } catch (e) { parsedSocial = [] }
     }
 
+    // Debug: log incoming vendor fields so admin saves can be verified in server logs
+    try {
+      console.log('[admin:createVendor] name=%s, phone=%s, website=%s, address=%s, social=%o, #images=%d', name, phone, website, address, parsedSocial, images.length);
+    } catch (e) {}
+
     const vendor = await Vendor.create({ name, phone, menuItems: parsedMenu, images, weeklyHours: parsedHours, website: website || '', address: address || '', social: parsedSocial });
     return res.json({ message: 'Vendor created', vendor });
   } catch (err) {
@@ -674,6 +679,10 @@ exports.updateVendor = async (req, res) => {
     if (typeof social !== 'undefined') {
       try { vendor.social = typeof social === 'string' ? JSON.parse(social) : social; } catch (e) { vendor.social = [] }
     }
+
+    try {
+      console.log('[admin:updateVendor] id=%s, name=%s, phone=%s, website=%s, address=%s, social=%o, incomingFiles=%d', id, name || vendor.name, phone || vendor.phone, vendor.website, vendor.address, vendor.social, (req.files || []).length);
+    } catch (e) {}
     
     if (menuItems) vendor.menuItems = typeof menuItems === 'string' ? JSON.parse(menuItems) : menuItems;
     if (weeklyHours) vendor.weeklyHours = typeof weeklyHours === 'string' ? JSON.parse(weeklyHours) : weeklyHours;
