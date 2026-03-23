@@ -56,7 +56,7 @@ const App = () => {
   const isCaptain = Boolean(captainToken);
   const isPushEnabled = Boolean(captainToken || userToken);
   usePushNotifications(isPushEnabled, isCaptain ? 'captain' : 'user');
-  const hideNavRoutes = ["/login", "/signup", "/", "/account/trips", "/lets-eat-local"];
+  const hideNavRoutes = ["/login", "/signup", "/", "/account/trips", "/lets-eat-local", "/vendors"];
   const hiddenRoutes = [
     "/login",
     "/signup",
@@ -226,7 +226,7 @@ const App = () => {
       {localStorage.getItem("token") && user && user.role === "user" && location.pathname === "/riding" && (
         <FloatingRideButton />
       )}
-      {!hideNavRoutes.includes(location.pathname) && !location.pathname.startsWith("/captain") && (
+      {!(hideNavRoutes.some(p => location.pathname === p || location.pathname.startsWith(p + '/'))) && !location.pathname.startsWith("/captain") && (
         <BottomNav />
       )}
       <ToastContainer />

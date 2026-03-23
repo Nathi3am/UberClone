@@ -303,7 +303,7 @@ export default function LetsEatLocal(){
               {social && social.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {social.map((s, idx) => (
-                    <div key={idx} style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div key={`${s.platform || s.url || idx}`} style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
                       <div style={{ fontWeight: 700 }}>{s.platform || 'link'}</div>
                       <div style={{ color: '#9aa6ba', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.url}</div>
                       <button className="btn" onClick={() => removeSocial(idx)}>Remove</button>
@@ -364,7 +364,7 @@ export default function LetsEatLocal(){
                         {d.open ? (
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                             {d.slots.map((s, si) => (
-                              <div key={si} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <div key={`${di}-${s.start || ''}-${s.end || ''}-${si}`} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                 <input type="time" value={s.start} onChange={e => setWeeklyHours(w => w.map((x,i)=> i===di ? {...x, slots: x.slots.map((ss,idx)=> idx===si ? {...ss, start: e.target.value} : ss)} : x))} />
                                 <span style={{ color: '#9aa6ba' }}>—</span>
                                 <input type="time" value={s.end} onChange={e => setWeeklyHours(w => w.map((x,i)=> i===di ? {...x, slots: x.slots.map((ss,idx)=> idx===si ? {...ss, end: e.target.value} : ss)} : x))} />
@@ -396,7 +396,7 @@ export default function LetsEatLocal(){
                 {website && <div style={{ marginBottom: 6 }}><a href={website} target="_blank" rel="noreferrer" style={{ color: '#60a5fa' }}>{website}</a></div>}
                 {social && social.length > 0 && (
                   <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-                    {social.map((s, i) => <a key={i} href={s.url} target="_blank" rel="noreferrer" style={{ color: '#9aa6ba' }}>{s.platform || s.url}</a>)}
+                    {social.map((s, i) => <a key={s.url || s.platform || i} href={s.url} target="_blank" rel="noreferrer" style={{ color: '#9aa6ba' }}>{s.platform || s.url}</a>)}
                   </div>
                 )}
 
@@ -437,21 +437,75 @@ export default function LetsEatLocal(){
             <h3>Saved Listings</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginTop: 10 }}>
               {vendors.map(v => (
-                <div key={v._id || v.id} style={{ padding: 12, borderRadius: 10, background: selectedVendorId && (String(selectedVendorId) === String(v._id || v.id)) ? 'linear-gradient(180deg,#0b2230,#071317)' : 'rgba(255,255,255,0.02)', border: selectedVendorId && (String(selectedVendorId) === String(v._id || v.id)) ? '1px solid rgba(96,165,250,0.16)' : '1px solid rgba(255,255,255,0.03)' }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <div style={{ width: 64, height: 48, background: 'rgba(255,255,255,0.03)', borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {v.images && v.images[0] ? <img src={v.images[0].url} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ color: '#9aa6ba', padding: 6 }}>No Image</div>}
+                <div
+                  key={v._id || v.id}
+                  onClick={() => loadVendor(v._id || v.id)}
+                  role="button"
+                  tabIndex={0}
+                  style={{
+                    padding: 14,
+                    borderRadius: 12,
+                    background: selectedVendorId && (String(selectedVendorId) === String(v._id || v.id)) ? 'linear-gradient(180deg,#0b2230,#071317)' : 'rgba(255,255,255,0.02)',
+                    border: selectedVendorId && (String(selectedVendorId) === String(v._id || v.id)) ? '1px solid rgba(96,165,250,0.16)' : '1px solid rgba(255,255,255,0.03)',
+                    boxShadow: '0 6px 20px rgba(2,6,23,0.45)',
+                    transition: 'transform 160ms ease, box-shadow 160ms ease',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    minHeight: 120
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') loadVendor(v._id || v.id) }}
+                >
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <div style={{ width: 72, height: 56, background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))', borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {v.images && v.images[0] ? (
+                        <img src={v.images[0].url} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ color: '#9aa6ba', padding: 6, fontSize: 13 }}>No Image</div>
+                      )}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 800 }}>{v.name}</div>
-                      <div style={{ color: '#9aa6ba', fontSize: 13 }}>{v.phone}</div>
-                      {v.address && <div style={{ color: '#9aa6ba', fontSize: 12 }}>{v.address}</div>}
-                      {v.website && <div style={{ color: '#60a5fa', fontSize: 12 }}>{v.website}</div>}
+
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: '#e6eef6', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
+                        {v.local && <span style={{ fontSize: 11, color: '#94a3b8', background: 'rgba(255,255,255,0.02)', padding: '4px 6px', borderRadius: 6 }}>local</span>}
+                      </div>
+
+                      <div style={{ color: '#9aa6ba', fontSize: 13, marginBottom: 6 }}>{v.phone || ''}</div>
+
+                      {v.address && <div style={{ color: '#9aa6ba', fontSize: 12, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.address}</div>}
+
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {v.website && (
+                          <a href={v.website} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()} style={{ color: '#60a5fa', fontSize: 12, textDecoration: 'none', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.website}</a>
+                        )}
+
+                        {v.social && v.social.length > 0 && (
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {v.social.map((s, i) => (
+                              <a
+                                key={(s.url || s.platform || i)}
+                                href={s.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e)=>e.stopPropagation()}
+                                title={s.platform || s.url}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, color: '#9aa6ba', fontSize: 12, textDecoration: 'none' }}
+                              >
+                                <span style={{ fontSize: 12, opacity: 0.9 }}>{(s.platform || '').slice(0,2).toUpperCase()}</span>
+                                <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(s.platform || s.url || '').replace(/^https?:\/\//, '')}</span>
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>
-                    <button className="btn" onClick={() => { loadVendor(v._id || v.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Edit</button>
-                    <button className="btn btn-ban" onClick={() => { setPendingDeleteId(v._id || v.id); setShowDeleteConfirm(true); }}>Delete</button>
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                    <button className="btn" onClick={(e) => { e.stopPropagation(); loadVendor(v._id || v.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Edit</button>
+                    <button className="btn btn-ban" onClick={(e) => { e.stopPropagation(); setPendingDeleteId(v._id || v.id); setShowDeleteConfirm(true); }}>Delete</button>
                   </div>
                 </div>
               ))}

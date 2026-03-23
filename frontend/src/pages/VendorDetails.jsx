@@ -55,21 +55,21 @@ export default function VendorDetails() {
             <h1 className="text-2xl font-semibold">{vendor.name}</h1>
             <button onClick={() => navigate(-1)} className="text-sm text-slate-400 hover:text-white">Back</button>
           </div>
-          {vendor.phone && <p className="text-slate-400 mt-1">{vendor.phone}</p>}
-          {vendor.address && <p className="text-slate-400 mt-1">{vendor.address}</p>}
+          {vendor.phone && <p className="text-slate-300 mt-1">{vendor.phone}</p>}
+          {vendor.address && <p className="text-slate-300 mt-1">{vendor.address}</p>}
           {/* Website and social icons */}
           <div className="vendor-links">
             {vendor.website && (
-              <div className="vendor-link">
-                <a href={vendor.website} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-white flex items-center gap-2">
+              <div className="vendor-link mt-2">
+                <a href={vendor.website} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-white flex items-center gap-2">
                   <i className="ri-global-line"></i>
-                  <span className="text-sm text-slate-300 truncate max-w-xs">{vendor.website}</span>
+                  <span className="text-sm truncate max-w-xs">{vendor.website}</span>
                 </a>
               </div>
             )}
 
             {vendor.social && vendor.social.length > 0 && (
-              <div className="vendor-social">
+              <div className="vendor-social mt-2 flex items-center gap-3">
                 {vendor.social.map((s, i) => {
                   const p = (s.platform || '').toLowerCase();
                   let icon = 'ri-link';
@@ -79,9 +79,22 @@ export default function VendorDetails() {
                   else if (p.includes('tiktok')) icon = 'ri-tiktok-fill';
                   else if (p.includes('youtube')) icon = 'ri-youtube-fill';
                   else if (p.includes('whatsapp')) icon = 'ri-whatsapp-fill';
+
+                  let handle = s.platform || '';
+                  if (!handle) {
+                    try {
+                      const u = new URL(s.url);
+                      const parts = (u.pathname || '').split('/').filter(Boolean);
+                      handle = parts.length ? parts[parts.length - 1] : u.hostname;
+                    } catch (e) {
+                      handle = s.url;
+                    }
+                  }
+
                   return (
-                    <a key={i} href={s.url} target="_blank" rel="noreferrer" title={s.platform || s.url}>
+                    <a key={s.url || s.platform || i} href={s.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-slate-300 hover:text-white">
                       <i className={icon}></i>
+                      <span className="text-sm">{handle}</span>
                     </a>
                   );
                 })}

@@ -621,6 +621,7 @@ exports.getVendors = async (req, res) => {
 exports.createVendor = async (req, res) => {
   try {
     const { name, phone, menuItems, weeklyHours, existingImages, website, address, social } = req.body || {};
+    try { console.log('[admin:createVendor] req.body keys=%o, files=%d', Object.keys(req.body || {}), (req.files || []).length); } catch (e) {}
     if (!name) return res.status(400).json({ message: 'Vendor name required' });
 
     const files = req.files || [];
@@ -655,6 +656,7 @@ exports.createVendor = async (req, res) => {
       console.log('[admin:createVendor] name=%s, phone=%s, website=%s, address=%s, social=%o, #images=%d', name, phone, website, address, parsedSocial, images.length);
     } catch (e) {}
 
+    try { console.log('[admin:createVendor] parsedMenu=%o, parsedHours=%o, parsedSocial=%o', parsedMenu, parsedHours, parsedSocial); } catch (e) {}
     const vendor = await Vendor.create({ name, phone, menuItems: parsedMenu, images, weeklyHours: parsedHours, website: website || '', address: address || '', social: parsedSocial });
     return res.json({ message: 'Vendor created', vendor });
   } catch (err) {
@@ -672,6 +674,7 @@ exports.updateVendor = async (req, res) => {
     if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     const { name, phone, menuItems, weeklyHours, existingImages, website, address, social } = req.body || {};
+    try { console.log('[admin:updateVendor] req.body keys=%o, files=%d', Object.keys(req.body || {}), (req.files || []).length); } catch (e) {}
     if (name) vendor.name = name;
     if (phone) vendor.phone = phone;
     if (typeof website !== 'undefined') vendor.website = website || '';

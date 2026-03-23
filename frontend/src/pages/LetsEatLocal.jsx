@@ -103,7 +103,7 @@ export default function LetsEatLocal() {
                         }
                       }
                       return (
-                        <a key={i} href={s.url} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center gap-2">
+                        <a key={s.url || s.platform || i} href={s.url} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center gap-2">
                           <i className={icon}></i>
                           <span className="text-sm text-slate-300">{handle}</span>
                         </a>
