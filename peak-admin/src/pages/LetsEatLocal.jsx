@@ -17,6 +17,11 @@ export default function LetsEatLocal(){
   const [menuItems, setMenuItems] = useState([])
   const [newItem, setNewItem] = useState('')
   const [images, setImages] = useState([]) // { id, file, url }
+  const [website, setWebsite] = useState('')
+  const [address, setAddress] = useState('')
+  const [social, setSocial] = useState([]) // { platform, url }
+  const [newSocialPlatform, setNewSocialPlatform] = useState('')
+  const [newSocialUrl, setNewSocialUrl] = useState('')
   const [vendors, setVendors] = useState([]) // list of saved vendors
   const [selectedVendorId, setSelectedVendorId] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -38,9 +43,21 @@ export default function LetsEatLocal(){
     setNewItem('')
   }
 
+  const addSocial = () => {
+    const p = (newSocialPlatform || '').trim()
+    const u = (newSocialUrl || '').trim()
+    if (!u) return alert('Enter social URL')
+    setSocial(prev => [...prev, { platform: p || 'link', url: u }])
+    setNewSocialPlatform('')
+    setNewSocialUrl('')
+  }
+
+  const removeSocial = (idx) => setSocial(prev => prev.filter((_,i)=>i!==idx))
+
   // Vendor CRUD handlers (local state)
   const clearForm = () => {
     setName(''); setPhone(''); setMenuItems([]); setNewItem('');
+    setWebsite(''); setAddress(''); setSocial([]); setNewSocialPlatform(''); setNewSocialUrl('')
     // revoke current images and clear
     images.forEach(i=> i.url && URL.revokeObjectURL(i.url))
     setImages([])
@@ -56,6 +73,9 @@ export default function LetsEatLocal(){
       form.append('name', name)
       form.append('phone', phone)
       form.append('menuItems', JSON.stringify(menuItems))
+        form.append('website', website)
+        form.append('address', address)
+        form.append('social', JSON.stringify(social || []))
       form.append('weeklyHours', JSON.stringify(weeklyHours))
 
       const existing = images.filter(i => !i.file && i.url).map(i => i.url)
@@ -72,7 +92,7 @@ export default function LetsEatLocal(){
       await fetchVendors()
       if (res && res.data && res.data.vendor) setSelectedVendorId(res.data.vendor._id || res.data.vendor.id || selectedVendorId)
       alert(res && res.data && res.data.message ? res.data.message : 'Saved')
-    } catch (e) {
+      } catch (e) {
       console.warn('saveVendor failed, falling back to local save', e && e.message)
       // Fallback: persist vendor locally so user sees saved card even if backend endpoint missing
       try {
@@ -82,6 +102,9 @@ export default function LetsEatLocal(){
           _id: localId,
           name,
           phone,
+            website,
+            address,
+            social,
           menuItems,
           images: localImages,
           weeklyHours,
@@ -139,6 +162,9 @@ export default function LetsEatLocal(){
     setSelectedVendorId(v._id || v.id)
     setName(v.name || '')
     setPhone(v.phone || '')
+    setWebsite(v.website || '')
+    setAddress(v.address || '')
+    setSocial(v.social || [])
     setMenuItems(v.menuItems || [])
     // images may be stored as {id,file,url}
     setImages((v.images||[]).map(img => ({ id: img._id || img.url || Date.now()+Math.random(), url: img.url, file: null })))
@@ -257,6 +283,36 @@ export default function LetsEatLocal(){
               <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+27 71 000 0000" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)', background: '#071317', color: '#fff' }} />
             </div>
 
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', color: '#9aa6ba', marginBottom: 6 }}>Address</label>
+              <input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Street address or area" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)', background: '#071317', color: '#fff' }} />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', color: '#9aa6ba', marginBottom: 6 }}>Website</label>
+              <input value={website} onChange={e=>setWebsite(e.target.value)} placeholder="https://example.com" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)', background: '#071317', color: '#fff' }} />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', color: '#9aa6ba', marginBottom: 6 }}>Social links</label>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <input value={newSocialPlatform} onChange={e=>setNewSocialPlatform(e.target.value)} placeholder="Platform (e.g. Instagram)" style={{ padding: 8, borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)', background: '#071317', color: '#fff' }} />
+                <input value={newSocialUrl} onChange={e=>setNewSocialUrl(e.target.value)} placeholder="https://..." style={{ padding: 8, borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)', background: '#071317', color: '#fff', flex: 1 }} />
+                <button className="btn btn-primary" onClick={addSocial}>Add</button>
+              </div>
+              {social && social.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {social.map((s, idx) => (
+                    <div key={idx} style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <div style={{ fontWeight: 700 }}>{s.platform || 'link'}</div>
+                      <div style={{ color: '#9aa6ba', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.url}</div>
+                      <button className="btn" onClick={() => removeSocial(idx)}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div style={{ marginTop: 18 }}>
               <h3 style={{ marginBottom: 8 }}>Editable Menu</h3>
               <p style={{ color: '#9aa6ba', marginBottom: 8 }}>Add items below — they can be edited or removed.</p>
@@ -334,8 +390,15 @@ export default function LetsEatLocal(){
               <p style={{ color: '#9aa6ba' }}>How the listing will appear.</p>
 
               <div style={{ marginTop: 12 }}>
-                <div style={{ fontWeight: 800, fontSize: 18 }}>{name || 'Vendor name'}</div>
-                <div style={{ color: '#9aa6ba', marginBottom: 10 }}>{phone || 'Phone number'}</div>
+                  <div style={{ fontWeight: 800, fontSize: 18 }}>{name || 'Vendor name'}</div>
+                <div style={{ color: '#9aa6ba', marginBottom: 6 }}>{phone || 'Phone number'}</div>
+                {address && <div style={{ color: '#9aa6ba', marginBottom: 6 }}>{address}</div>}
+                {website && <div style={{ marginBottom: 6 }}><a href={website} target="_blank" rel="noreferrer" style={{ color: '#60a5fa' }}>{website}</a></div>}
+                {social && social.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                    {social.map((s, i) => <a key={i} href={s.url} target="_blank" rel="noreferrer" style={{ color: '#9aa6ba' }}>{s.platform || s.url}</a>)}
+                  </div>
+                )}
 
                 <div style={{ marginTop: 8 }}>
                   {images.length > 0 && (
@@ -382,6 +445,8 @@ export default function LetsEatLocal(){
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 800 }}>{v.name}</div>
                       <div style={{ color: '#9aa6ba', fontSize: 13 }}>{v.phone}</div>
+                      {v.address && <div style={{ color: '#9aa6ba', fontSize: 12 }}>{v.address}</div>}
+                      {v.website && <div style={{ color: '#60a5fa', fontSize: 12 }}>{v.website}</div>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>

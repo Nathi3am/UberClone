@@ -25,6 +25,9 @@ const VendorSchema = new mongoose.Schema({
   phone: { type: String },
   menuItems: [MenuItemSchema],
   images: [ImageSchema],
+  website: { type: String },
+  social: [{ platform: String, url: String }],
+  address: { type: String },
   weeklyHours: [DaySchema]
 }, { timestamps: true });
 

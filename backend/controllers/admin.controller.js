@@ -620,7 +620,7 @@ exports.getVendors = async (req, res) => {
 
 exports.createVendor = async (req, res) => {
   try {
-    const { name, phone, menuItems, weeklyHours, existingImages } = req.body || {};
+    const { name, phone, menuItems, weeklyHours, existingImages, website, address, social } = req.body || {};
     if (!name) return res.status(400).json({ message: 'Vendor name required' });
 
     const files = req.files || [];
@@ -645,8 +645,12 @@ exports.createVendor = async (req, res) => {
 
     const parsedMenu = (menuItems && typeof menuItems === 'string') ? JSON.parse(menuItems) : (menuItems || []);
     const parsedHours = (weeklyHours && typeof weeklyHours === 'string') ? JSON.parse(weeklyHours) : (weeklyHours || []);
+    let parsedSocial = [];
+    if (social) {
+      try { parsedSocial = typeof social === 'string' ? JSON.parse(social) : social; } catch (e) { parsedSocial = [] }
+    }
 
-    const vendor = await Vendor.create({ name, phone, menuItems: parsedMenu, images, weeklyHours: parsedHours });
+    const vendor = await Vendor.create({ name, phone, menuItems: parsedMenu, images, weeklyHours: parsedHours, website: website || '', address: address || '', social: parsedSocial });
     return res.json({ message: 'Vendor created', vendor });
   } catch (err) {
     console.error('createVendor error', err);
@@ -662,10 +666,15 @@ exports.updateVendor = async (req, res) => {
     const vendor = await Vendor.findById(id);
     if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
-    const { name, phone, menuItems, weeklyHours, existingImages } = req.body || {};
+    const { name, phone, menuItems, weeklyHours, existingImages, website, address, social } = req.body || {};
     if (name) vendor.name = name;
     if (phone) vendor.phone = phone;
-
+    if (typeof website !== 'undefined') vendor.website = website || '';
+    if (typeof address !== 'undefined') vendor.address = address || '';
+    if (typeof social !== 'undefined') {
+      try { vendor.social = typeof social === 'string' ? JSON.parse(social) : social; } catch (e) { vendor.social = [] }
+    }
+    
     if (menuItems) vendor.menuItems = typeof menuItems === 'string' ? JSON.parse(menuItems) : menuItems;
     if (weeklyHours) vendor.weeklyHours = typeof weeklyHours === 'string' ? JSON.parse(weeklyHours) : weeklyHours;
 
