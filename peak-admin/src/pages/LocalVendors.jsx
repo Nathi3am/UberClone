@@ -3,18 +3,14 @@ import styles from './LocalVendors.module.css';
 import API_BASE_URL from '../config/api';
 
 const MAX_IMAGES = 5;
-const MAX_IMAGE_SIZE_MB = 10; // enforce 10MB client-side default to avoid server 413
+const MAX_IMAGE_SIZE_MB = 10;
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-// Cloudinary unsigned upload config (set in peak-admin/.env)
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const CLOUDINARY_UNSIGNED_PRESET = import.meta.env.VITE_CLOUDINARY_UNSIGNED_PRESET || '';
+const STORAGE_KEY = 'localVendors_cache';
 
-// Image compression
 import imageCompression from 'browser-image-compression';
 const IMAGE_COMPRESSION_OPTIONS = { maxSizeMB: 1, maxWidthOrHeight: 1600, useWebWorker: true };
-
-const STORAGE_KEY = 'localVendors_cache';
-const FORM_STORAGE_KEY = 'localVendors_form';
 
 const defaultHours = [
   { day: 'Monday', open: false, slots: [] },
@@ -26,7 +22,6 @@ const defaultHours = [
   { day: 'Sunday', open: false, slots: [] },
 ];
 
-// FIX 1: Helper to reset all form fields — reused after save (create & edit)
 const getEmptyForm = () => ({
   businessName: '',
   phones: [''],
@@ -42,8 +37,57 @@ const getEmptyForm = () => ({
   collection: false,
 });
 
+// Normalise a raw vendor object from the backend into the shape the UI expects
+const normaliseVendor = (v) => {
+  let phones = [];
+  if (Array.isArray(v.phones)) phones = v.phones;
+  else if (v.phones && typeof v.phones === 'string') phones = [v.phones];
+  else if (v.phoneNumbers && Array.isArray(v.phoneNumbers)) phones = v.phoneNumbers;
+
+  let socials = [];
+  const rawSocials = v.social || v.socials || [];
+  if (Array.isArray(rawSocials)) {
+    socials = rawSocials.map(s => {
+      if (!s) return { platform: '', url: '' };
+      if (typeof s === 'string') return { platform: '', url: s };
+      return { platform: s.platform || s.name || '', url: s.url || s.link || '' };
+    });
+  }
+
+  let menu = [];
+  const rawMenu = v.menuItems || v.menu || [];
+  if (Array.isArray(rawMenu)) {
+    menu = rawMenu.map(m => typeof m === 'string'
+      ? { name: m, price: '' }
+      : { name: m.name || m.title || '', price: m.price || m.cost || '' });
+  }
+
+  const images = Array.isArray(v.images)
+    ? v.images.map(i => (typeof i === 'string' ? i : (i.url || i.secure_url || '')))
+    : [];
+
+  let profilePic = '';
+  if (v.profileImage) profilePic = v.profileImage.url || v.profileImage.secure_url || '';
+  else if (v.profilePic && typeof v.profilePic === 'string') profilePic = v.profilePic;
+
+  return {
+    _id: v._id,
+    name: v.name || v.businessName || v.title || '',
+    phones,
+    address: v.address || v.location || '',
+    website: v.website || v.url || '',
+    socials,
+    businessHours: v.weeklyHours || v.businessHours || [],
+    menu,
+    delivery: Boolean(v.deliveryOption || v.delivery),
+    collection: Boolean(v.collectionOption || v.collection),
+    images,
+    profilePic,
+  };
+};
+
 export default function LocalVendors() {
-  // vendorCards initialises from localStorage cache so cards show instantly on refresh
+  // Initialise from localStorage so cards show instantly on refresh
   const [vendorCards, setVendorCards] = useState(() => {
     try {
       const cached = localStorage.getItem(STORAGE_KEY);
@@ -67,7 +111,6 @@ export default function LocalVendors() {
   const [delivery, setDelivery] = useState(false);
   const [collection, setCollection] = useState(false);
 
-  // FIX 3: resetForm applies the empty state to every field
   const resetForm = () => {
     const e = getEmptyForm();
     setBusinessName(e.businessName);
@@ -82,14 +125,83 @@ export default function LocalVendors() {
     setMenu(e.menu);
     setDelivery(e.delivery);
     setCollection(e.collection);
-    try { localStorage.removeItem(FORM_STORAGE_KEY); } catch (e) { /* ignore */ }
   };
+
+  // Keep localStorage in sync whenever vendorCards changes
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(vendorCards)); } catch { }
+  }, [vendorCards]);
+
+  // Fetch vendors from backend on mount with retry for Render cold-start
+  useEffect(() => {
+    let cancelled = false;
+    const MAX_RETRIES = 5;
+    const RETRY_DELAY_MS = 8000;
+
+    const fetchWithRetry = async () => {
+      setLoadingVendors(true);
+      setLoadError(null);
+      const base = (API_BASE_URL || '').replace(/\/$/, '');
+
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        if (cancelled) return;
+        try {
+          const res = await fetch(base + '/vendors');
+          if (!res.ok) throw new Error(`Status ${res.status}`);
+          const raw = await res.json();
+          if (cancelled) return;
+
+          // THE KEY FIX: handle all response shapes the backend might return.
+          // Your backend returns { message: "...", vendor: {...} } for a single vendor,
+          // but the GET /vendors list endpoint may return a different shape.
+          // We handle all cases here:
+          let list = [];
+          if (Array.isArray(raw)) {
+            // plain array: [{ ... }, { ... }]
+            list = raw;
+          } else if (raw && Array.isArray(raw.vendors)) {
+            // { vendors: [...] }
+            list = raw.vendors;
+          } else if (raw && Array.isArray(raw.data)) {
+            // { data: [...] }
+            list = raw.data;
+          } else if (raw && raw.vendor && typeof raw.vendor === 'object') {
+            // { vendor: {...} } — single object, wrap in array
+            list = [raw.vendor];
+          } else {
+            throw new Error('Unexpected response: ' + JSON.stringify(raw).slice(0, 120));
+          }
+
+          const mapped = list.map(normaliseVendor);
+          setVendorCards(mapped);
+          setLoadingVendors(false);
+          setLoadError(null);
+          return; // success — stop retrying
+
+        } catch (err) {
+          console.warn(`Vendors fetch attempt ${attempt} failed:`, err.message);
+          if (attempt < MAX_RETRIES) {
+            if (!cancelled) setLoadError(`Server is waking up… retrying (${attempt}/${MAX_RETRIES})`);
+            await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+          } else {
+            if (!cancelled) {
+              setLoadError('Could not reach server. Showing cached data.');
+              setLoadingVendors(false);
+            }
+          }
+        }
+      }
+    };
+
+    fetchWithRetry();
+    return () => { cancelled = true; };
+  }, []);
 
   // Business hours handlers
   const toggleDayOpen = idx => {
-    const updated = [...businessHours];
-    updated[idx] = { ...updated[idx], open: !updated[idx].open };
-    if (!updated[idx].open) updated[idx].slots = [];
+    const updated = businessHours.map((d, i) =>
+      i === idx ? { ...d, open: !d.open, slots: d.open ? [] : d.slots } : d
+    );
     setBusinessHours(updated);
   };
   const addSlot = idx => {
@@ -113,15 +225,15 @@ export default function LocalVendors() {
     setBusinessHours(updated);
   };
 
-  // Social media handlers
+  // Social handlers
   const handleSocialChange = (idx, field, value) => {
-    const updated = [...socials];
-    updated[idx] = { ...updated[idx], [field]: value };
+    const updated = socials.map((s, i) => i === idx ? { ...s, [field]: value } : s);
     setSocials(updated);
   };
   const addSocial = () => setSocials([...socials, { platform: '', url: '' }]);
   const removeSocial = idx => setSocials(socials.filter((_, i) => i !== idx));
 
+  // Phone handlers
   const handlePhoneChange = (idx, value) => {
     const updated = [...phones];
     updated[idx] = value;
@@ -130,9 +242,9 @@ export default function LocalVendors() {
   const addPhone = () => setPhones([...phones, '']);
   const removePhone = idx => setPhones(phones.filter((_, i) => i !== idx));
 
+  // Menu handlers
   const handleMenuChange = (idx, field, value) => {
-    const updated = [...menu];
-    updated[idx] = { ...updated[idx], [field]: value };
+    const updated = menu.map((m, i) => i === idx ? { ...m, [field]: value } : m);
     setMenu(updated);
   };
   const addMenuItem = () => setMenu([...menu, { name: '', price: '' }]);
@@ -151,7 +263,7 @@ export default function LocalVendors() {
       }
       if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
         const mb = (file.size / (1024 * 1024)).toFixed(2);
-        alert(`Image "${file.name}" is too large (${mb} MB). Maximum allowed is ${MAX_IMAGE_SIZE_MB} MB.`);
+        alert(`Image "${file.name}" is too large (${mb} MB). Max is ${MAX_IMAGE_SIZE_MB} MB.`);
         return;
       }
     }
@@ -163,12 +275,12 @@ export default function LocalVendors() {
     const file = e.target.files[0];
     if (file) {
       if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-        alert(`Unsupported profile image type: ${file.type}. Allowed: JPG, PNG, WEBP, GIF.`);
+        alert(`Unsupported profile image type: ${file.type}.`);
         return;
       }
       if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
         const mb = (file.size / (1024 * 1024)).toFixed(2);
-        alert(`Profile image "${file.name}" is too large (${mb} MB). Maximum allowed is ${MAX_IMAGE_SIZE_MB} MB.`);
+        alert(`Profile image too large (${mb} MB). Max is ${MAX_IMAGE_SIZE_MB} MB.`);
         return;
       }
       setProfilePic(file);
@@ -189,7 +301,6 @@ export default function LocalVendors() {
 
         const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || '';
 
-        // helper: compress and upload one file to Cloudinary
         const uploadToCloudinaryClient = async (file) => {
           try {
             const compressed = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
@@ -206,11 +317,9 @@ export default function LocalVendors() {
             const txt = await r.text();
             let j = {};
             try { j = txt ? JSON.parse(txt) : {}; } catch (e) { j = { message: txt }; }
-            if (!r.ok) throw new Error(j && j.error && j.error.message ? j.error.message : (j.message || `Upload failed: ${r.status}`));
+            if (!r.ok) throw new Error(j?.error?.message || j.message || `Upload failed: ${r.status}`);
             return { url: j.secure_url, public_id: j.public_id };
           }
-
-          // signed upload fallback
           const signUrl = (API_BASE_URL || '').replace(/\/$/, '') + '/admin/cloudinary-sign?folder=vendors';
           const signRes = await fetch(signUrl, { method: 'GET', headers: token ? { Authorization: `Bearer ${token}` } : {} });
           if (!signRes.ok) {
@@ -229,17 +338,13 @@ export default function LocalVendors() {
           const txt2 = await r2.text();
           let j2 = {};
           try { j2 = txt2 ? JSON.parse(txt2) : {}; } catch (e) { j2 = { message: txt2 }; }
-          if (!r2.ok) throw new Error(j2 && j2.error && j2.error.message ? j2.error.message : (j2.message || `Upload failed: ${r2.status}`));
+          if (!r2.ok) throw new Error(j2?.error?.message || j2.message || `Upload failed: ${r2.status}`);
           return { url: j2.secure_url, public_id: j2.public_id };
         };
 
-        // upload profile pic first (if present)
         let profileImageResult = null;
-        if (profilePic) {
-          profileImageResult = await uploadToCloudinaryClient(profilePic);
-        }
+        if (profilePic) profileImageResult = await uploadToCloudinaryClient(profilePic);
 
-        // upload gallery images
         const imagesResult = [];
         if (images && images.length) {
           for (const f of images) {
@@ -248,7 +353,6 @@ export default function LocalVendors() {
           }
         }
 
-        // build payload and send to backend
         const payload = {
           name: businessName,
           phones: phones.filter(p => p.trim()),
@@ -260,68 +364,64 @@ export default function LocalVendors() {
           deliveryOption: delivery,
           collectionOption: collection,
           images: imagesResult,
-          profileImage: profileImageResult
+          profileImage: profileImageResult,
         };
 
-        console.debug('LocalVendors: payload to send', payload);
-
         let res;
-        if (editingIndex !== null && editingIndex >= 0 && vendorCards[editingIndex] && vendorCards[editingIndex]._id) {
+        if (editingIndex !== null && editingIndex >= 0 && vendorCards[editingIndex]?._id) {
           const id = vendorCards[editingIndex]._id;
           const url = (API_BASE_URL || '').replace(/\/$/, '') + `/admin/vendors/${id}`;
           res = await fetch(url, {
             method: 'PATCH',
             headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: `Bearer ${token}` } : {}),
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
           });
         } else {
           const url = (API_BASE_URL || '').replace(/\/$/, '') + '/admin/vendors';
           res = await fetch(url, {
             method: 'POST',
             headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: `Bearer ${token}` } : {}),
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
           });
         }
 
         const text = await res.text();
         let json = {};
         try { json = text ? JSON.parse(text) : {}; } catch (e) { json = { message: text }; }
-        console.debug('LocalVendors: save response', res.status, json);
-        if (!res.ok) return alert(json && json.message ? json.message : 'Error saving vendor');
-        const saved = json.data || {};
+        if (!res.ok) return alert(json?.message || 'Error saving vendor');
 
-        const v = {
-          _id: saved._id,
+        // Handle backend response shapes: { vendor: {...} } or { data: {...} } or plain object
+        const saved = json.vendor || json.data || json || {};
+
+        const v = normaliseVendor({
+          ...saved,
           name: saved.name || businessName,
           phones: saved.phones || phones.filter(p => p.trim()),
           address: saved.address || address,
           website: saved.website || website,
-          socials: saved.social || socials.filter(s => s.platform && s.url),
-          // FIX 4: fallback to local businessHours state when backend doesn't return weeklyHours
-          businessHours: saved.weeklyHours || businessHours,
-          menu: saved.menuItems || menu.filter(m => m.name),
-          delivery: saved.hasOwnProperty('deliveryOption') ? saved.deliveryOption : delivery,
-          collection: saved.hasOwnProperty('collectionOption') ? saved.collectionOption : collection,
-          images: (saved.images || imagesResult).map(i => (typeof i === 'string' ? i : (i.url || i))),
-          profilePic: saved.profileImage ? (saved.profileImage.url || saved.profileImage.secure_url) : (profilePicUrl || null)
-        };
+          social: saved.social || socials.filter(s => s.platform && s.url),
+          weeklyHours: saved.weeklyHours || businessHours,
+          menuItems: saved.menuItems || menu.filter(m => m.name),
+          deliveryOption: saved.hasOwnProperty('deliveryOption') ? saved.deliveryOption : delivery,
+          collectionOption: saved.hasOwnProperty('collectionOption') ? saved.collectionOption : collection,
+          images: saved.images?.length ? saved.images : imagesResult,
+          profileImage: saved.profileImage || profileImageResult,
+        });
 
         if (editingIndex !== null && editingIndex >= 0 && editingIndex < vendorCards.length) {
           const updated = [...vendorCards];
-          if (saved._id) v._id = saved._id;
           updated[editingIndex] = v;
           setVendorCards(updated);
         } else {
           setVendorCards([v, ...vendorCards]);
         }
 
-        // FIX 5: reset the form after every successful save (create or edit)
         setEditingIndex(null);
         resetForm();
 
       } catch (err) {
         console.error('save vendor error', err);
-        alert(err && err.message ? err.message : 'Error saving vendor');
+        alert(err?.message || 'Error saving vendor');
       }
     })();
   };
@@ -338,59 +438,16 @@ export default function LocalVendors() {
     setMenu(Array.isArray(v.menu) && v.menu.length ? v.menu : [{ name: '', price: '' }]);
     setDelivery(Boolean(v.delivery));
     setCollection(Boolean(v.collection));
-    // Images cannot be restored to File objects; clear file inputs
     setImages([]);
     setProfilePic(null);
     setProfilePicUrl(v.profilePic || null);
     setEditingIndex(idx);
   };
 
-  // Persist form state (serializable parts) so inputs survive a browser refresh
-  useEffect(() => {
-    try {
-      const toSave = {
-        editingIndex,
-        businessName,
-        phones,
-        address,
-        website,
-        profilePicUrl,
-        socials,
-        businessHours,
-        menu,
-        delivery,
-        collection
-      };
-      localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(toSave));
-    } catch (e) { /* ignore storage errors */ }
-  }, [editingIndex, businessName, phones, address, website, profilePicUrl, socials, businessHours, menu, delivery, collection]);
-
-  // Restore form state on mount if present
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(FORM_STORAGE_KEY);
-      if (!raw) return;
-      const s = JSON.parse(raw);
-      if (!s) return;
-      if (s.businessName) setBusinessName(s.businessName);
-      if (Array.isArray(s.phones)) setPhones(s.phones.length ? s.phones : ['']);
-      if (s.address) setAddress(s.address);
-      if (s.website) setWebsite(s.website);
-      if (s.profilePicUrl) setProfilePicUrl(s.profilePicUrl);
-      if (Array.isArray(s.socials) && s.socials.length) setSocials(s.socials);
-      if (Array.isArray(s.businessHours) && s.businessHours.length) setBusinessHours(s.businessHours);
-      if (Array.isArray(s.menu) && s.menu.length) setMenu(s.menu);
-      if (typeof s.delivery === 'boolean') setDelivery(s.delivery);
-      if (typeof s.collection === 'boolean') setCollection(s.collection);
-      if (typeof s.editingIndex === 'number') setEditingIndex(s.editingIndex);
-    } catch (e) { /* ignore parse errors */ }
-  }, []);
-
   const handleDeleteVendor = (idx) => {
     const vendor = vendorCards[idx];
     if (!vendor) return;
     if (!confirm('Delete this vendor? This cannot be undone.')) return;
-
     (async () => {
       try {
         if (vendor._id) {
@@ -401,10 +458,9 @@ export default function LocalVendors() {
             const txt = await res.text().catch(() => '');
             let j = {};
             try { j = txt ? JSON.parse(txt) : {}; } catch (e) { j = { message: txt }; }
-            return alert(j && j.message ? j.message : 'Failed to delete vendor on server');
+            return alert(j?.message || 'Failed to delete vendor on server');
           }
         }
-
         const updated = vendorCards.filter((_, i) => i !== idx);
         setVendorCards(updated);
         if (editingIndex === idx) setEditingIndex(null);
@@ -416,102 +472,12 @@ export default function LocalVendors() {
     })();
   };
 
-  // Keep localStorage in sync whenever vendorCards changes
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(vendorCards)); } catch { /* quota exceeded — ignore */ }
-  }, [vendorCards]);
-
-  // Load vendors from backend on mount, with retry for Render cold-start delays
-  useEffect(() => {
-    let cancelled = false;
-    const MAX_RETRIES = 5;
-    const RETRY_DELAY_MS = 8000; // 8 seconds between retries
-
-    const normalise = (v) => {
-      let phones = [];
-      if (Array.isArray(v.phones)) phones = v.phones;
-      else if (v.phones && typeof v.phones === 'string') phones = [v.phones];
-      else if (v.phoneNumbers && Array.isArray(v.phoneNumbers)) phones = v.phoneNumbers;
-
-      let socials = [];
-      const rawSocials = v.social || v.socials || [];
-      if (Array.isArray(rawSocials)) {
-        socials = rawSocials.map(s => {
-          if (!s) return { platform: '', url: '' };
-          if (typeof s === 'string') return { platform: '', url: s };
-          return { platform: s.platform || s.name || '', url: s.url || s.link || '' };
-        });
-      }
-
-      let menu = [];
-      const rawMenu = v.menuItems || v.menu || [];
-      if (Array.isArray(rawMenu)) {
-        menu = rawMenu.map(m => typeof m === 'string' ? { name: m, price: '' } : { name: m.name || m.title || '', price: m.price || m.cost || '' });
-      }
-
-      const images = Array.isArray(v.images) ? v.images.map(i => (typeof i === 'string' ? i : (i.url || i.secure_url || ''))) : [];
-
-      let profilePic = '';
-      if (v.profileImage) profilePic = v.profileImage.url || v.profileImage.secure_url || '';
-      else if (v.profilePic && typeof v.profilePic === 'string') profilePic = v.profilePic;
-
-      return {
-        _id: v._id,
-        name: v.name || v.businessName || v.title || '',
-        phones,
-        address: v.address || v.location || '',
-        website: v.website || v.url || '',
-        socials,
-        businessHours: v.weeklyHours || v.businessHours || [],
-        menu,
-        delivery: Boolean(v.deliveryOption || v.delivery),
-        collection: Boolean(v.collectionOption || v.collection),
-        images,
-        profilePic
-      };
-    };
-
-    const fetchWithRetry = async () => {
-      setLoadingVendors(true);
-      setLoadError(null);
-      const base = (API_BASE_URL || '').replace(/\/$/, '');
-      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        if (cancelled) return;
-        try {
-          const res = await fetch(base + '/vendors');
-          if (!res.ok) throw new Error(`Status ${res.status}`);
-          const list = await res.json();
-          if (cancelled) return;
-          if (!Array.isArray(list)) throw new Error('Unexpected response format');
-          const mapped = list.map(normalise);
-          setVendorCards(mapped);
-          setLoadingVendors(false);
-          setLoadError(null);
-          return; // success — stop retrying
-        } catch (err) {
-          console.warn(`Vendors fetch attempt ${attempt} failed:`, err.message);
-          if (attempt < MAX_RETRIES) {
-            if (!cancelled) setLoadError(`Server is waking up… retrying (${attempt}/${MAX_RETRIES})`);
-            await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
-          } else {
-            if (!cancelled) {
-              setLoadError('Could not reach server. Showing cached data.');
-              setLoadingVendors(false);
-            }
-          }
-        }
-      }
-    };
-
-    fetchWithRetry();
-    return () => { cancelled = true; };
-  }, []);
-
   return (
     <div className={styles.vendorFormContainer}>
       <h2 className={styles.vendorFormTitle}>
         {editingIndex !== null ? 'Edit Vendor' : 'Add Local Vendor'}
       </h2>
+
       {loadingVendors && (
         <div style={{ textAlign: 'center', color: '#38bdf8', marginBottom: 12, fontSize: '0.97rem' }}>
           ⏳ {loadError || 'Loading vendors…'}
@@ -522,6 +488,7 @@ export default function LocalVendors() {
           ⚠️ {loadError}
         </div>
       )}
+
       <div className={styles.formGroup}>
         <label className={styles.formLabel}>Business Name</label>
         <input value={businessName} onChange={e => setBusinessName(e.target.value)} className={styles.input} />
@@ -553,7 +520,7 @@ export default function LocalVendors() {
         )}
       </div>
       <div className={styles.formGroup}>
-        <label className={styles.formLabel}>Upload Images (up to 5, max {MAX_IMAGE_SIZE_MB}MB each)</label>
+        <label className={styles.formLabel}>Upload Images (up to {MAX_IMAGES}, max {MAX_IMAGE_SIZE_MB}MB each)</label>
         <input type="file" accept="image/*" multiple onChange={handleImagesChange} />
         <div className={styles.imagePreview}>
           {images.map((img, idx) => (
@@ -568,23 +535,9 @@ export default function LocalVendors() {
         <label className={styles.formLabel}>Social Media</label>
         {socials.map((soc, idx) => (
           <div key={idx} className={styles.dynamicList} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <input
-              placeholder="Platform (e.g. Instagram)"
-              value={soc.platform}
-              onChange={e => handleSocialChange(idx, 'platform', e.target.value)}
-              className={styles.input}
-              style={{ flex: 1 }}
-            />
-            <input
-              placeholder="Profile URL"
-              value={soc.url}
-              onChange={e => handleSocialChange(idx, 'url', e.target.value)}
-              className={styles.input}
-              style={{ flex: 2 }}
-            />
-            {socials.length > 1 && (
-              <button type="button" className={styles.removeBtn} onClick={() => removeSocial(idx)}>Remove</button>
-            )}
+            <input placeholder="Platform (e.g. Instagram)" value={soc.platform} onChange={e => handleSocialChange(idx, 'platform', e.target.value)} className={styles.input} style={{ flex: 1 }} />
+            <input placeholder="Profile URL" value={soc.url} onChange={e => handleSocialChange(idx, 'url', e.target.value)} className={styles.input} style={{ flex: 2 }} />
+            {socials.length > 1 && <button type="button" className={styles.removeBtn} onClick={() => removeSocial(idx)}>Remove</button>}
           </div>
         ))}
         <button type="button" className={styles.addBtn} onClick={addSocial}>Add Social Media</button>
@@ -595,32 +548,15 @@ export default function LocalVendors() {
           {businessHours.map((day, idx) => (
             <div key={day.day} className={styles.businessHoursRow} style={{ marginBottom: 8 }}>
               <label style={{ minWidth: 110, display: 'inline-block' }}>
-                <input
-                  type="checkbox"
-                  checked={day.open}
-                  onChange={() => toggleDayOpen(idx)}
-                  style={{ marginRight: 6 }}
-                /> {day.day}
+                <input type="checkbox" checked={day.open} onChange={() => toggleDayOpen(idx)} style={{ marginRight: 6 }} /> {day.day}
               </label>
               {day.open && (
                 <div className={styles.slotsContainer} style={{ display: 'inline-block', marginLeft: 12 }}>
                   {day.slots.map((slot, slotIdx) => (
                     <span key={slotIdx} className={styles.slot} style={{ marginRight: 8 }}>
-                      <input
-                        type="time"
-                        value={slot.start}
-                        onChange={e => handleSlotChange(idx, slotIdx, 'start', e.target.value)}
-                        className={styles.input}
-                        style={{ width: 100, display: 'inline-block' }}
-                      />
+                      <input type="time" value={slot.start} onChange={e => handleSlotChange(idx, slotIdx, 'start', e.target.value)} className={styles.input} style={{ width: 100, display: 'inline-block' }} />
                       <span style={{ margin: '0 4px' }}>-</span>
-                      <input
-                        type="time"
-                        value={slot.end}
-                        onChange={e => handleSlotChange(idx, slotIdx, 'end', e.target.value)}
-                        className={styles.input}
-                        style={{ width: 100, display: 'inline-block' }}
-                      />
+                      <input type="time" value={slot.end} onChange={e => handleSlotChange(idx, slotIdx, 'end', e.target.value)} className={styles.input} style={{ width: 100, display: 'inline-block' }} />
                       <button type="button" className={styles.removeBtn} style={{ marginLeft: 4 }} onClick={() => removeSlot(idx, slotIdx)}>Remove</button>
                     </span>
                   ))}
@@ -651,20 +587,16 @@ export default function LocalVendors() {
           {editingIndex !== null ? 'Update Vendor' : 'Save Vendor'}
         </button>
         {editingIndex !== null && (
-          <button
-            type="button"
-            className={styles.saveBtn}
-            style={{ background: '#334155', color: '#f1f5f9' }}
-            onClick={() => { setEditingIndex(null); resetForm(); }}
-          >
+          <button type="button" className={styles.saveBtn} style={{ background: '#334155', color: '#f1f5f9' }}
+            onClick={() => { setEditingIndex(null); resetForm(); }}>
             Cancel Edit
           </button>
         )}
       </div>
+
       <div className={styles.cardsContainer}>
         {vendorCards.map((vendor, idx) => (
           <div key={idx} className={styles.vendorCard}>
-            {/* Business Profile Picture */}
             {((typeof vendor.profilePic === 'string' && vendor.profilePic) || (vendor.profilePic && (vendor.profilePic.url || vendor.profilePic.secure_url))) ? (
               <img
                 src={typeof vendor.profilePic === 'string' ? vendor.profilePic : (vendor.profilePic.url || vendor.profilePic.secure_url)}
@@ -673,9 +605,7 @@ export default function LocalVendors() {
                 style={{ background: '#1e293b' }}
               />
             ) : (
-              <div className={styles.cardImage} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontWeight: 700, fontSize: 32 }}>
-                ?
-              </div>
+              <div className={styles.cardImage} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontWeight: 700, fontSize: 32 }}>?</div>
             )}
             <div className={styles.cardContent}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -695,12 +625,9 @@ export default function LocalVendors() {
               <div className={`${styles.cardSection} ${styles.cardSocials}`}>
                 <b>Socials:</b>{' '}
                 {Array.isArray(vendor.socials) && vendor.socials.length
-                  ? vendor.socials.map((s, i) => (
-                    <a key={i} href={s.url || '#'} target="_blank" rel="noopener noreferrer" className={styles.cardSocialLink}>{s.platform || s.url}</a>
-                  ))
+                  ? vendor.socials.map((s, i) => <a key={i} href={s.url || '#'} target="_blank" rel="noopener noreferrer" className={styles.cardSocialLink}>{s.platform || s.url}</a>)
                   : '—'}
               </div>
-              {/* FIX 6: guard against undefined businessHours / menu with || [] to prevent crash */}
               <div className={`${styles.cardSection} ${styles.cardHours}`}>
                 <b>Business Hours:</b>{' '}
                 {(vendor.businessHours || []).filter(d => d.open).length
@@ -710,9 +637,7 @@ export default function LocalVendors() {
               <div className={`${styles.cardSection} ${styles.cardMenuList}`}>
                 <b>Menu:</b>{' '}
                 {(vendor.menu || []).length
-                  ? (vendor.menu || []).map((m, i) => (
-                    <span key={i} className={styles.cardMenuItem}>{m.name}{m.price ? ` (${m.price})` : ''}</span>
-                  ))
+                  ? (vendor.menu || []).map((m, i) => <span key={i} className={styles.cardMenuItem}>{m.name}{m.price ? ` (${m.price})` : ''}</span>)
                   : '—'}
               </div>
               <div className={styles.cardTags}>
