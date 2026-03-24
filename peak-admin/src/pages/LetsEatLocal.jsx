@@ -1,43 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
-import axios from 'axios'
-import ProtectedRoute from '../components/ProtectedRoute'
-
-export default function LetsEatLocal(){
-  const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE || 'https://vexomove.onrender.com' })
-  // attach admin JWT from localStorage when present
-  api.interceptors.request.use(cfg => {
-    try {
-      const token = localStorage.getItem('token')
-      if (token) cfg.headers = Object.assign({}, cfg.headers, { Authorization: `Bearer ${token}` })
-    } catch (e) {}
-    return cfg
-  })
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [menuItems, setMenuItems] = useState([])
-  const [newItem, setNewItem] = useState('')
-  const [images, setImages] = useState([]) // { id, file, url }
-  const [website, setWebsite] = useState('')
-  const [address, setAddress] = useState('')
-  const [social, setSocial] = useState([]) // { platform, url }
-  const [newSocialPlatform, setNewSocialPlatform] = useState('')
-  const [newSocialUrl, setNewSocialUrl] = useState('')
-  const [vendors, setVendors] = useState([]) // list of saved vendors
-  const [selectedVendorId, setSelectedVendorId] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [viewMode, setViewMode] = useState('form') // 'form' or 'list'
-  const [page, setPage] = useState(1)
-  const pageSize = 6
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [pendingDeleteId, setPendingDeleteId] = useState(null)
-  const [weeklyHours, setWeeklyHours] = useState(() => {
-    const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-    return days.map(d => ({ day: d, open: false, slots: [] }))
-  })
-  const imagesRef = useRef([])
-
-  const addItem = () => {
-    const v = newItem && newItem.trim()
+// This file was removed as part of the 'lets eat local' feature removal.
     if(!v) return
     setMenuItems(prev => [...prev, { id: Date.now(), title: v }])
     setNewItem('')
@@ -82,19 +43,6 @@ export default function LetsEatLocal(){
       form.append('existingImages', JSON.stringify(existing))
 
       images.forEach(i => { if (i.file) form.append('images', i.file) })
-
-      // Debug: log preview object and FormData contents to help verify what's sent
-      try {
-        const preview = { name, phone, website, address, social, menuItems, weeklyHours, imagesCount: images.length, existingImages: existing }
-        console.log('[admin-ui:saveVendor] preview payload:', preview)
-        for (const entry of form.entries()) {
-          // files will appear as File objects; log their field name and type/size when available
-          const key = entry[0]
-          const val = entry[1]
-          if (val && val instanceof File) console.log('[admin-ui:FormData]', key, val.name, val.type, val.size)
-          else console.log('[admin-ui:FormData]', key, val)
-        }
-      } catch (e) { console.warn('saveVendor debug log failed', e) }
 
       let res
       if (selectedVendorId) {

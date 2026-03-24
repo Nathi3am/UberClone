@@ -1,43 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://vexomove.onrender.com';
-
-export default function LetsEatLocal() {
-  const navigate = useNavigate();
-  const [vendors, setVendors] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchVendors = async () => {
-      try {
-        setLoading(true);
-        const res = await axios.get(`${API_BASE_URL}/vendors`);
-        const data = res.data;
-        if (Array.isArray(data)) setVendors(data);
-        else if (data && Array.isArray(data.vendors)) setVendors(data.vendors);
-        else setVendors([]);
-      } catch (e) {
-        setError('Failed to load vendors');
-        setVendors([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchVendors();
-  }, []);
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="mb-6">
-        <div className="bg-gradient-to-r from-slate-900/60 via-slate-800/40 to-slate-900/30 p-4 rounded-xl backdrop-blur-sm border border-slate-700">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold">Lets Eat Local</h1>
-            <div className="w-64">
-              <input
-                className="w-full rounded-md bg-slate-900/40 border border-slate-700 px-3 py-2 text-sm placeholder-slate-400"
+// This file was removed as part of the 'lets eat local' feature removal.
                 placeholder="Search vendors or dishes..."
                 onChange={() => {}}
               />

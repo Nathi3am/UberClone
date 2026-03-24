@@ -26,7 +26,7 @@ import CaptainVehicles from "./pages/captain/CaptainVehicles";
 import Requests from "./pages/captain/Requests";
 import CaptainRides from "./pages/captain/CaptainRides";
 import SpecialRequests from "./pages/SpecialRequests";
-import LetsEatLocal from "./pages/LetsEatLocal";
+// ...existing code...
 import VendorDetails from "./pages/VendorDetails";
 import AdminDashboard from "./pages/AdminDashboard";
 import { AdminProvider } from "./admin/context/AdminContext";
@@ -56,7 +56,7 @@ const App = () => {
   const isCaptain = Boolean(captainToken);
   const isPushEnabled = Boolean(captainToken || userToken);
   usePushNotifications(isPushEnabled, isCaptain ? 'captain' : 'user');
-  const hideNavRoutes = ["/login", "/signup", "/", "/account/trips", "/lets-eat-local", "/vendors"];
+  const hideNavRoutes = ["/login", "/signup", "/", "/account/trips", "/vendors"];
   const hiddenRoutes = [
     "/login",
     "/signup",
@@ -206,7 +206,7 @@ const App = () => {
                 }
               ></Route>
               <Route path="/special-requests" element={<SpecialRequests />} />
-              <Route path="/lets-eat-local" element={<LetsEatLocal />} />
+// ...existing code...
               <Route path="/vendors/:id" element={<VendorDetails />} />
               <Route path="/admin" element={<AdminProvider><AdminLayout /></AdminProvider>}>
                 <Route index element={<Dashboard />} />

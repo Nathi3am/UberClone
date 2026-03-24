@@ -46,6 +46,9 @@ router.post('/vendors', adminAuth, upload.fields([
 	{ name: 'images', maxCount: 5 }
 ]), adminController.createVendor);
 router.delete('/vendors/:id', adminAuth, adminController.deleteVendor);
+router.patch('/vendors/:id', adminAuth, adminController.updateVendor);
+// Cloudinary signing endpoint for client-side signed uploads
+router.get('/cloudinary-sign', adminAuth, adminController.cloudinarySign);
 
 // Admin actions (use POST to match admin UI expectations)
 // legacy toggle route kept for compatibility

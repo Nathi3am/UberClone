@@ -35,8 +35,8 @@ exports.createVendor = async (req, res) => {
           const uploaded = await uploadToCloudinary(req.files.profilePic[0].buffer, 'vendors');
           profileImageResult = { url: uploaded.secure_url, public_id: uploaded.public_id };
         } catch (e) {
-          console.error('Profile image upload error:', e);
-          return res.status(500).json({ message: 'Error uploading profile image' });
+          console.error('Profile image upload error:', e && (e.stack || e.message || e));
+          return res.status(500).json({ message: e && e.message ? `Profile upload failed: ${e.message}` : 'Error uploading profile image' });
         }
       }
 
@@ -47,8 +47,8 @@ exports.createVendor = async (req, res) => {
             const uploaded = await uploadToCloudinary(f.buffer, 'vendors');
             imagesResult.push({ url: uploaded.secure_url, public_id: uploaded.public_id });
           } catch (e) {
-            console.error('Image upload error:', e);
-            return res.status(500).json({ message: 'Error uploading images' });
+            console.error('Image upload error:', e && (e.stack || e.message || e));
+            return res.status(500).json({ message: e && e.message ? `Image upload failed: ${e.message}` : 'Error uploading images' });
           }
         }
       }
@@ -102,6 +102,81 @@ exports.deleteVendor = async (req, res) => {
   } catch (err) {
     console.error('deleteVendor error:', err);
     return res.status(500).json({ message: 'Error deleting vendor' });
+  }
+};
+
+// Admin: Update a vendor (supports JSON payload from admin UI)
+exports.updateVendor = async (req, res) => {
+  try {
+    const vendorId = req.params.id;
+    if (!vendorId) return res.status(400).json({ message: 'vendor id required' });
+
+    // find existing vendor
+    const existing = await Vendor.findById(vendorId);
+    if (!existing) return res.status(404).json({ message: 'Vendor not found' });
+
+    // parse incoming fields (JSON expected)
+    const payload = req.body || {};
+    const parseJson = (val) => {
+      if (!val) return null;
+      if (typeof val === 'object') return val;
+      try { return JSON.parse(val); } catch (e) { return null; }
+    };
+
+    const name = (payload.name || existing.name || '').trim();
+    const phones = parseJson(payload.phones) || (payload.phones ? [payload.phones] : existing.phones || []);
+    const menuItems = parseJson(payload.menuItems) || parseJson(payload.menu) || existing.menuItems || [];
+    const website = (payload.website || existing.website || '').trim();
+    const social = parseJson(payload.social) || existing.social || [];
+    const address = (payload.address || existing.address || '').trim();
+    const weeklyHours = parseJson(payload.weeklyHours) || existing.weeklyHours || [];
+    const deliveryOption = payload.deliveryOption === 'true' || payload.deliveryOption === true || existing.deliveryOption;
+    const collectionOption = payload.collectionOption === 'true' || payload.collectionOption === true || existing.collectionOption;
+
+    // Handle profileImage/images replacement if provided as JSON objects (from client-side Cloudinary uploads)
+    // payload.profileImage: { url, public_id }
+    // payload.images: [{ url, public_id }, ...]
+    if (payload.profileImage) {
+      try {
+        // remove old profile image on Cloudinary if present
+        if (existing.profileImage && existing.profileImage.public_id) {
+          try { await cloudinary.uploader.destroy(existing.profileImage.public_id); } catch (e) { console.warn('failed to destroy old profile image', e); }
+        }
+      } catch (e) {}
+      existing.profileImage = { url: payload.profileImage.url || payload.profileImage.secure_url || payload.profileImage, public_id: payload.profileImage.public_id || null };
+    }
+
+    if (payload.images) {
+      try {
+        // delete old images if any (best-effort)
+        if (Array.isArray(existing.images)) {
+          for (const img of existing.images) {
+            if (img && img.public_id) {
+              try { await cloudinary.uploader.destroy(img.public_id); } catch (e) { console.warn('failed to destroy old image', e); }
+            }
+          }
+        }
+      } catch (e) {}
+      // replace with provided array mapping to {url, public_id}
+      existing.images = parseJson(payload.images) ? parseJson(payload.images).map(i => ({ url: i.url || i.secure_url || i, public_id: i.public_id || null })) : existing.images;
+    }
+
+    // update scalar fields
+    existing.name = name || existing.name;
+    existing.phones = phones;
+    existing.menuItems = menuItems;
+    existing.website = website;
+    existing.social = social;
+    existing.address = address;
+    existing.weeklyHours = weeklyHours;
+    existing.deliveryOption = !!deliveryOption;
+    existing.collectionOption = !!collectionOption;
+
+    await existing.save();
+    return res.json({ data: existing });
+  } catch (err) {
+    console.error('updateVendor error:', err && (err.stack || err));
+    return res.status(500).json({ message: 'Error updating vendor' });
   }
 };
 
@@ -259,6 +334,21 @@ exports.getDashboardStats = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error fetching stats' });
+  }
+};
+
+// Return Cloudinary signature and timestamp for client-side signed uploads
+exports.cloudinarySign = async (req, res) => {
+  try {
+    const folder = req.query.folder || 'vendors';
+    const timestamp = Math.floor(Date.now() / 1000);
+    // params to sign must exactly match the upload params the client will send
+    const paramsToSign = { folder, timestamp };
+    const signature = cloudinary.utils.api_sign_request(paramsToSign, process.env.CLOUDINARY_API_SECRET);
+    return res.json({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, timestamp, signature, folder });
+  } catch (err) {
+    console.error('cloudinarySign error:', err);
+    return res.status(500).json({ message: 'Error generating Cloudinary signature' });
   }
 };
 

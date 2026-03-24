@@ -1,7 +1,3 @@
-// Startup log for Render/console visibility
-console.log('--- VexoMove Backend Server Starting ---');
-console.log('Node version:', process.version);
-console.log('Env:', process.env.NODE_ENV);
 const http = require('http');
 const app = require('./app');
 const { initializeSocket } = require('./socket');
