@@ -22,13 +22,16 @@ const DaySchema = new mongoose.Schema({
 
 const VendorSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  phone: { type: String },
+  phones: [{ type: String }],
   menuItems: [MenuItemSchema],
   images: [ImageSchema],
+  profileImage: ImageSchema,
   website: { type: String },
   social: [{ platform: String, url: String }],
   address: { type: String },
-  weeklyHours: [DaySchema]
+  weeklyHours: [DaySchema],
+  deliveryOption: { type: Boolean, default: false },
+  collectionOption: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Vendor', VendorSchema);
