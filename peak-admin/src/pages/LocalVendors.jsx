@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import styles from './LocalVendors.module.css';
+import API_BASE_URL from '../config/api';
 
 const MAX_IMAGES = 5;
-const MAX_IMAGE_SIZE_MB = 100;
+const MAX_IMAGE_SIZE_MB = 10; // enforce 10MB client-side default to avoid server 413
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+// Cloudinary unsigned upload config (set in peak-admin/.env)
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
+const CLOUDINARY_UNSIGNED_PRESET = import.meta.env.VITE_CLOUDINARY_UNSIGNED_PRESET || '';
 
 export default function LocalVendors() {
   const [businessName, setBusinessName] = useState('');
@@ -80,8 +85,13 @@ export default function LocalVendors() {
       return;
     }
     for (let file of files) {
+      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        alert(`Unsupported image type: ${file.type}. Allowed: JPG, PNG, WEBP, GIF.`);
+        return;
+      }
       if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-        alert(`Each image must be less than ${MAX_IMAGE_SIZE_MB}MB.`);
+        const mb = (file.size / (1024*1024)).toFixed(2);
+        alert(`Image "${file.name}" is too large (${mb} MB). Maximum allowed is ${MAX_IMAGE_SIZE_MB} MB.`);
         return;
       }
     }
@@ -94,10 +104,20 @@ export default function LocalVendors() {
 
   const handleProfilePicChange = e => {
     const file = e.target.files[0];
-    setProfilePic(file);
     if (file) {
+      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        alert(`Unsupported profile image type: ${file.type}. Allowed: JPG, PNG, WEBP, GIF.`);
+        return;
+      }
+      if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+        const mb = (file.size / (1024*1024)).toFixed(2);
+        alert(`Profile image "${file.name}" is too large (${mb} MB). Maximum allowed is ${MAX_IMAGE_SIZE_MB} MB.`);
+        return;
+      }
+      setProfilePic(file);
       setProfilePicUrl(URL.createObjectURL(file));
     } else {
+      setProfilePic(null);
       setProfilePicUrl(null);
     }
   };
@@ -106,31 +126,68 @@ export default function LocalVendors() {
     e.preventDefault();
     (async () => {
       try {
+        if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UNSIGNED_PRESET) {
+          return alert('Cloudinary not configured. Set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UNSIGNED_PRESET in peak-admin/.env');
+        }
+
         const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || '';
-        const fd = new FormData();
-        fd.append('name', businessName || '');
-        fd.append('phones', JSON.stringify(phones.filter(p => p.trim())));
-        fd.append('address', address || '');
-        fd.append('website', website || '');
-        fd.append('social', JSON.stringify(socials.filter(s => s.platform && s.url)));
-        fd.append('weeklyHours', JSON.stringify(businessHours));
-        fd.append('menuItems', JSON.stringify(menu.filter(m => m.name)));
-        fd.append('deliveryOption', delivery ? 'true' : 'false');
-        fd.append('collectionOption', collection ? 'true' : 'false');
 
-        if (profilePic) fd.append('profilePic', profilePic);
-        for (const img of images) fd.append('images', img);
+        // helper: upload one file to unsigned Cloudinary
+        const uploadToCloudinaryClient = async (file) => {
+          const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('upload_preset', CLOUDINARY_UNSIGNED_PRESET);
+          const r = await fetch(url, { method: 'POST', body: fd });
+          const txt = await r.text();
+          let j = {};
+          try { j = txt ? JSON.parse(txt) : {}; } catch (e) { j = { message: txt }; }
+          if (!r.ok) throw new Error(j && j.error && j.error.message ? j.error.message : (j.message || `Upload failed: ${r.status}`));
+          return { url: j.secure_url, public_id: j.public_id };
+        };
 
-        const res = await fetch('/admin/vendors', {
+        // upload profile pic first (if present)
+        let profileImageResult = null;
+        if (profilePic) {
+          profileImageResult = await uploadToCloudinaryClient(profilePic);
+        }
+
+        // upload gallery images
+        const imagesResult = [];
+        if (images && images.length) {
+          for (const f of images) {
+            const uploaded = await uploadToCloudinaryClient(f);
+            imagesResult.push({ url: uploaded.url, public_id: uploaded.public_id });
+          }
+        }
+
+        // build payload (JSON) and send to backend
+        const payload = {
+          name: businessName,
+          phones: phones.filter(p => p.trim()),
+          address,
+          website,
+          social: socials.filter(s => s.platform && s.url),
+          weeklyHours: businessHours,
+          menuItems: menu.filter(m => m.name),
+          deliveryOption: delivery,
+          collectionOption: collection,
+          images: imagesResult,
+          profileImage: profileImageResult
+        };
+
+        const url = (API_BASE_URL || '').replace(/\/$/, '') + '/admin/vendors';
+        const res = await fetch(url, {
           method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body: fd
+          headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: `Bearer ${token}` } : {}),
+          body: JSON.stringify(payload)
         });
-        const json = await res.json();
+        const text = await res.text();
+        let json = {};
+        try { json = text ? JSON.parse(text) : {}; } catch (e) { json = { message: text }; }
         if (!res.ok) return alert(json && json.message ? json.message : 'Error saving vendor');
-        const saved = json.data || json.data;
+        const saved = json.data || {};
 
-        // normalize saved vendor for UI
         const v = {
           _id: saved._id,
           name: saved.name,
@@ -157,7 +214,7 @@ export default function LocalVendors() {
         setEditingIndex(null);
       } catch (err) {
         console.error('save vendor error', err);
-        alert('Error saving vendor');
+        alert(err && err.message ? err.message : 'Error saving vendor');
       }
     })();
   };
@@ -191,9 +248,12 @@ export default function LocalVendors() {
         // if persisted on server, delete there
         if (vendor._id) {
           const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || '';
-          const res = await fetch(`/admin/vendors/${vendor._id}`, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
+          const delUrl = (API_BASE_URL || '').replace(/\/$/, '') + `/admin/vendors/${vendor._id}`;
+          const res = await fetch(delUrl, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
           if (!res.ok) {
-            const j = await res.json().catch(() => ({}));
+            const txt = await res.text().catch(() => '');
+            let j = {};
+            try { j = txt ? JSON.parse(txt) : {}; } catch (e) { j = { message: txt }; }
             return alert(j && j.message ? j.message : 'Failed to delete vendor on server');
           }
         }
