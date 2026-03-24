@@ -8,6 +8,7 @@ const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const CLOUDINARY_UNSIGNED_PRESET = import.meta.env.VITE_CLOUDINARY_UNSIGNED_PRESET || '';
 const STORAGE_KEY = 'localVendors_cache';
+const FORM_STATE_KEY = 'localVendors_form';
 
 import imageCompression from 'browser-image-compression';
 const IMAGE_COMPRESSION_OPTIONS = { maxSizeMB: 1, maxWidthOrHeight: 1600, useWebWorker: true };
@@ -126,6 +127,58 @@ export default function LocalVendors() {
     setDelivery(e.delivery);
     setCollection(e.collection);
   };
+
+  // Persist form values so in-progress edits survive a page refresh
+  useEffect(() => {
+    try {
+      const editingVendorId = (editingIndex !== null && vendorCards[editingIndex] && vendorCards[editingIndex]._id) ? vendorCards[editingIndex]._id : null;
+      const formState = {
+        businessName,
+        phones,
+        address,
+        website,
+        profilePicUrl,
+        socials,
+        businessHours,
+        menu,
+        delivery,
+        collection,
+        editingVendorId,
+      };
+      localStorage.setItem(FORM_STATE_KEY, JSON.stringify(formState));
+    } catch (e) {
+      // ignore storage errors
+    }
+  }, [businessName, phones, address, website, profilePicUrl, socials, businessHours, menu, delivery, collection, editingIndex, vendorCards]);
+
+  // Restore saved form state after vendorCards are loaded (or on first mount)
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(FORM_STATE_KEY);
+      if (!cached) return;
+      const s = JSON.parse(cached);
+      if (!s) return;
+      setBusinessName(s.businessName || '');
+      setPhones(Array.isArray(s.phones) && s.phones.length ? s.phones : ['']);
+      setAddress(s.address || '');
+      setWebsite(s.website || '');
+      setProfilePicUrl(s.profilePicUrl || null);
+      setSocials(Array.isArray(s.socials) && s.socials.length ? s.socials : [{ platform: '', url: '' }]);
+      setBusinessHours(Array.isArray(s.businessHours) && s.businessHours.length ? s.businessHours : defaultHours.map(d => ({ ...d, slots: [] })));
+      setMenu(Array.isArray(s.menu) && s.menu.length ? s.menu : [{ name: '', price: '' }]);
+      setDelivery(Boolean(s.delivery));
+      setCollection(Boolean(s.collection));
+
+      // If the cached state referenced a vendor id we were editing, try to re-select it
+      if (s.editingVendorId) {
+        const idx = vendorCards.findIndex(v => v._id === s.editingVendorId);
+        if (idx >= 0) setEditingIndex(idx);
+      }
+    } catch (e) {
+      // ignore
+    }
+    // run when vendorCards changes or on mount
+  }, [vendorCards]);
 
   // Keep localStorage in sync whenever vendorCards changes
   useEffect(() => {
@@ -418,6 +471,7 @@ export default function LocalVendors() {
 
         setEditingIndex(null);
         resetForm();
+        try { localStorage.removeItem(FORM_STATE_KEY); } catch (e) { }
 
       } catch (err) {
         console.error('save vendor error', err);
@@ -442,6 +496,11 @@ export default function LocalVendors() {
     setProfilePic(null);
     setProfilePicUrl(v.profilePic || null);
     setEditingIndex(idx);
+    try {
+      const cached = JSON.parse(localStorage.getItem(FORM_STATE_KEY) || '{}');
+      cached.editingVendorId = v._id;
+      localStorage.setItem(FORM_STATE_KEY, JSON.stringify(cached));
+    } catch (e) { }
   };
 
   const handleDeleteVendor = (idx) => {
@@ -465,6 +524,7 @@ export default function LocalVendors() {
         setVendorCards(updated);
         if (editingIndex === idx) setEditingIndex(null);
         if (editingIndex !== null && editingIndex > idx) setEditingIndex(editingIndex - 1);
+        try { localStorage.removeItem(FORM_STATE_KEY); } catch (e) { }
       } catch (err) {
         console.error('delete vendor error', err);
         alert('Error deleting vendor');
@@ -588,7 +648,7 @@ export default function LocalVendors() {
         </button>
         {editingIndex !== null && (
           <button type="button" className={styles.saveBtn} style={{ background: '#334155', color: '#f1f5f9' }}
-            onClick={() => { setEditingIndex(null); resetForm(); }}>
+            onClick={() => { setEditingIndex(null); resetForm(); try { localStorage.removeItem(FORM_STATE_KEY); } catch (e) {} }}>
             Cancel Edit
           </button>
         )}
