@@ -79,7 +79,7 @@ const Sidebar = () => {
                 {l.id === 'rides' && (
                   <div style={{ marginTop: 8, paddingLeft: collapsed ? 0 : 40, paddingRight: 4 }}>
                     <button
-                      onClick={() => navigate('/admin/lets-eat-local')}
+// ...existing code...
                       style={{
                         width: '100%',
                         padding: '9px 10px',
@@ -96,7 +96,7 @@ const Sidebar = () => {
                       }}
                     >
                       <span style={{ width: 20, textAlign: 'center' }}>🍽️</span>
-                      {!collapsed && <span style={{ fontSize: 13 }}>lets eat local</span>}
+// ...existing code...
                     </button>
                   </div>
                 )}

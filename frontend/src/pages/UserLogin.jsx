@@ -305,6 +305,7 @@ const UserLogin = () => {
           transform: scale(1.02);
           box-shadow: 0 0 28px 5px rgba(37,99,235,0.8);
         }
+
         .user-login-page .lets-eat-local-btn {
           width: 100%;
           padding: 16px 18px;

@@ -40,11 +40,15 @@ router.post('/special-requests/upload', adminAuth, upload.single('image'), admin
 router.patch('/special-requests/:id', adminAuth, adminController.updateSpecialRequest);
 router.delete('/special-requests/:id', adminAuth, adminController.deleteSpecialRequest);
 
-// Lets Eat Local vendors CRUD (images: up to 5)
-router.get('/vendors', adminAuth, adminController.getVendors);
-router.post('/vendors', adminAuth, upload.array('images', 5), adminController.createVendor);
-router.patch('/vendors/:id', adminAuth, upload.array('images', 5), adminController.updateVendor);
+// Local Vendors CRUD
+router.post('/vendors', adminAuth, upload.fields([
+	{ name: 'profilePic', maxCount: 1 },
+	{ name: 'images', maxCount: 5 }
+]), adminController.createVendor);
 router.delete('/vendors/:id', adminAuth, adminController.deleteVendor);
+router.patch('/vendors/:id', adminAuth, adminController.updateVendor);
+// Cloudinary signing endpoint for client-side signed uploads
+router.get('/cloudinary-sign', adminAuth, adminController.cloudinarySign);
 
 // Admin actions (use POST to match admin UI expectations)
 // legacy toggle route kept for compatibility

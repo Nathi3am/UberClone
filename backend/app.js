@@ -159,10 +159,17 @@ app.use((err, req, res, next) => {
     const isMulterError = err instanceof multer.MulterError || (err && (err.code === 'LIMIT_FILE_SIZE' || /file too large/i.test(err.message || '')));
     if (isMulterError) {
         console.warn('[error] Multer file size limit:', err && err.message ? err.message : err);
-        return res.status(413).json({ message: 'Uploaded file too large. Maximum allowed size is 100MB.' });
+        return res.status(413).json({ message: err && err.message ? err.message : 'Uploaded file too large. Maximum allowed size is 100MB.' });
     }
 
-    // For other errors, log and return generic 500 to avoid leaking internals.
+    // Known invalid file type from our fileFilter
+    if (err && err.code === 'INVALID_FILE_TYPE') {
+        console.warn('[error] Invalid file type:', err.message);
+        return res.status(415).json({ message: err.message });
+    }
+
+    // For other errors, log and return the error message to help debugging (non-production)
     console.error('[error] Unhandled error:', err && err.stack ? err.stack : err);
-    return res.status(500).json({ message: 'Internal server error' });
+    const message = (err && err.message) ? err.message : 'Internal server error';
+    return res.status(500).json({ message });
 });

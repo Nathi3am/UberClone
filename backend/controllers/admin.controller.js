@@ -1,3 +1,185 @@
+// Admin: Create a new vendor (Local Vendor)
+exports.createVendor = async (req, res) => {
+  try {
+    // Helper to parse JSON fields that arrive as strings in multipart requests
+    const parseJson = (val) => {
+      if (!val) return null;
+      if (typeof val === 'object') return val;
+      try { return JSON.parse(val); } catch (e) { return null; }
+    };
+
+    const name = (req.body.name || '').trim();
+    const phones = parseJson(req.body.phones) || (req.body.phones ? [req.body.phones] : []);
+    const menuItems = parseJson(req.body.menuItems) || parseJson(req.body.menu) || [];
+    const website = (req.body.website || '').trim();
+    const social = parseJson(req.body.social) || [];
+    const address = (req.body.address || '').trim();
+    const weeklyHours = parseJson(req.body.weeklyHours) || [];
+    const deliveryOption = req.body.deliveryOption === 'true' || req.body.deliveryOption === true;
+    const collectionOption = req.body.collectionOption === 'true' || req.body.collectionOption === true;
+
+    if (!name) return res.status(400).json({ message: 'Vendor name is required' });
+
+    if (!Array.isArray(social) || !social.every(s => s && s.platform && s.url)) {
+      return res.status(400).json({ message: 'Social media must be an array of {platform, url} objects' });
+    }
+
+    // Process file uploads (multer memory storage)
+    const imagesResult = [];
+    let profileImageResult = null;
+
+    if (req.files) {
+      // profilePic may be single
+      if (req.files.profilePic && req.files.profilePic.length > 0) {
+        try {
+          const uploaded = await uploadToCloudinary(req.files.profilePic[0].buffer, 'vendors');
+          profileImageResult = { url: uploaded.secure_url, public_id: uploaded.public_id };
+        } catch (e) {
+          console.error('Profile image upload error:', e && (e.stack || e.message || e));
+          return res.status(500).json({ message: e && e.message ? `Profile upload failed: ${e.message}` : 'Error uploading profile image' });
+        }
+      }
+
+      // images array
+      if (req.files.images && req.files.images.length > 0) {
+        for (const f of req.files.images) {
+          try {
+            const uploaded = await uploadToCloudinary(f.buffer, 'vendors');
+            imagesResult.push({ url: uploaded.secure_url, public_id: uploaded.public_id });
+          } catch (e) {
+            console.error('Image upload error:', e && (e.stack || e.message || e));
+            return res.status(500).json({ message: e && e.message ? `Image upload failed: ${e.message}` : 'Error uploading images' });
+          }
+        }
+      }
+    }
+
+    const vendorPayload = {
+      name,
+      phones,
+      menuItems,
+      images: imagesResult,
+      website,
+      social,
+      address,
+      weeklyHours,
+      deliveryOption,
+      collectionOption
+    };
+    if (profileImageResult) vendorPayload.profileImage = profileImageResult;
+
+    const vendor = await Vendor.create(vendorPayload);
+    return res.status(201).json({ data: vendor });
+  } catch (err) {
+    console.error('createVendor error:', err);
+    return res.status(500).json({ message: 'Error creating vendor' });
+  }
+};
+// Admin: Delete a vendor and its images from Cloudinary
+exports.deleteVendor = async (req, res) => {
+  try {
+    const vendorId = req.params.id;
+    if (!vendorId) return res.status(400).json({ message: 'vendor id required' });
+    const vendor = await Vendor.findById(vendorId).lean();
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    // collect public_ids
+    const toDelete = [];
+    if (vendor.profileImage && vendor.profileImage.public_id) toDelete.push(vendor.profileImage.public_id);
+    if (Array.isArray(vendor.images)) {
+      for (const img of vendor.images) if (img && img.public_id) toDelete.push(img.public_id);
+    }
+
+    // destroy on Cloudinary (best-effort)
+    try {
+      for (const pid of toDelete) {
+        try { await cloudinary.uploader.destroy(pid); } catch (e) { console.warn('cloudinary destroy failed for', pid, e); }
+      }
+    } catch (e) {}
+
+    await Vendor.deleteOne({ _id: vendorId });
+    return res.json({ message: 'Vendor deleted' });
+  } catch (err) {
+    console.error('deleteVendor error:', err);
+    return res.status(500).json({ message: 'Error deleting vendor' });
+  }
+};
+
+// Admin: Update a vendor (supports JSON payload from admin UI)
+exports.updateVendor = async (req, res) => {
+  try {
+    const vendorId = req.params.id;
+    if (!vendorId) return res.status(400).json({ message: 'vendor id required' });
+
+    // find existing vendor
+    const existing = await Vendor.findById(vendorId);
+    if (!existing) return res.status(404).json({ message: 'Vendor not found' });
+
+    // parse incoming fields (JSON expected)
+    const payload = req.body || {};
+    const parseJson = (val) => {
+      if (!val) return null;
+      if (typeof val === 'object') return val;
+      try { return JSON.parse(val); } catch (e) { return null; }
+    };
+
+    const name = (payload.name || existing.name || '').trim();
+    const phones = parseJson(payload.phones) || (payload.phones ? [payload.phones] : existing.phones || []);
+    const menuItems = parseJson(payload.menuItems) || parseJson(payload.menu) || existing.menuItems || [];
+    const website = (payload.website || existing.website || '').trim();
+    const social = parseJson(payload.social) || existing.social || [];
+    const address = (payload.address || existing.address || '').trim();
+    const weeklyHours = parseJson(payload.weeklyHours) || existing.weeklyHours || [];
+    const deliveryOption = payload.deliveryOption === 'true' || payload.deliveryOption === true || existing.deliveryOption;
+    const collectionOption = payload.collectionOption === 'true' || payload.collectionOption === true || existing.collectionOption;
+
+    // Handle profileImage/images replacement if provided as JSON objects (from client-side Cloudinary uploads)
+    // payload.profileImage: { url, public_id }
+    // payload.images: [{ url, public_id }, ...]
+    if (payload.profileImage) {
+      try {
+        // remove old profile image on Cloudinary if present
+        if (existing.profileImage && existing.profileImage.public_id) {
+          try { await cloudinary.uploader.destroy(existing.profileImage.public_id); } catch (e) { console.warn('failed to destroy old profile image', e); }
+        }
+      } catch (e) {}
+      existing.profileImage = { url: payload.profileImage.url || payload.profileImage.secure_url || payload.profileImage, public_id: payload.profileImage.public_id || null };
+    }
+
+    if (payload.images) {
+      try {
+        // delete old images if any (best-effort)
+        if (Array.isArray(existing.images)) {
+          for (const img of existing.images) {
+            if (img && img.public_id) {
+              try { await cloudinary.uploader.destroy(img.public_id); } catch (e) { console.warn('failed to destroy old image', e); }
+            }
+          }
+        }
+      } catch (e) {}
+      // replace with provided array mapping to {url, public_id}
+      existing.images = parseJson(payload.images) ? parseJson(payload.images).map(i => ({ url: i.url || i.secure_url || i, public_id: i.public_id || null })) : existing.images;
+    }
+
+    // update scalar fields
+    existing.name = name || existing.name;
+    existing.phones = phones;
+    existing.menuItems = menuItems;
+    existing.website = website;
+    existing.social = social;
+    existing.address = address;
+    existing.weeklyHours = weeklyHours;
+    existing.deliveryOption = !!deliveryOption;
+    existing.collectionOption = !!collectionOption;
+
+    await existing.save();
+    return res.json({ data: existing });
+  } catch (err) {
+    console.error('updateVendor error:', err && (err.stack || err));
+    return res.status(500).json({ message: 'Error updating vendor' });
+  }
+};
+
 const Ride = require('../models/ride.model');
 const User = require('../models/user.model');
 const Captain = require('../models/captain.model');
@@ -8,7 +190,7 @@ const fs = require('fs');
 const path = require('path');
 const Audit = require('../models/audit.model');
 const { sendMessageToSocketId } = require('../socket');
-const { uploadToCloudinary } = require('../config/cloudinary');
+const { uploadToCloudinary, cloudinary } = require('../config/cloudinary');
 const Vendor = require('../models/vendor.model');
 const mongoose = require('mongoose');
 
@@ -152,6 +334,21 @@ exports.getDashboardStats = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error fetching stats' });
+  }
+};
+
+// Return Cloudinary signature and timestamp for client-side signed uploads
+exports.cloudinarySign = async (req, res) => {
+  try {
+    const folder = req.query.folder || 'vendors';
+    const timestamp = Math.floor(Date.now() / 1000);
+    // params to sign must exactly match the upload params the client will send
+    const paramsToSign = { folder, timestamp };
+    const signature = cloudinary.utils.api_sign_request(paramsToSign, process.env.CLOUDINARY_API_SECRET);
+    return res.json({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, timestamp, signature, folder });
+  } catch (err) {
+    console.error('cloudinarySign error:', err);
+    return res.status(500).json({ message: 'Error generating Cloudinary signature' });
   }
 };
 
@@ -607,104 +804,7 @@ exports.getRidesTab = async (req, res) => {
   }
 };
 
-// Vendors (Lets Eat Local) CRUD
-exports.getVendors = async (req, res) => {
-  try {
-    const list = await Vendor.find().sort({ createdAt: -1 }).lean();
-    return res.json(list);
-  } catch (e) {
-    console.error('getVendors error', e);
-    return res.status(500).json({ message: 'Error fetching vendors' });
-  }
-};
-
-exports.createVendor = async (req, res) => {
-  try {
-    const { name, phone, menuItems, weeklyHours, existingImages } = req.body || {};
-    if (!name) return res.status(400).json({ message: 'Vendor name required' });
-
-    const files = req.files || [];
-    const images = [];
-
-    // keep any existing image URLs passed from client
-    if (existingImages) {
-      try {
-        const parsed = typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages;
-        if (Array.isArray(parsed)) parsed.forEach(u => images.push({ url: u }));
-      } catch (e) {}
-    }
-
-    for (const f of files) {
-      try {
-        const result = await uploadToCloudinary(f.buffer, 'lets-eat-local');
-        images.push({ url: result.secure_url || result.url, public_id: result.public_id });
-      } catch (e) {
-        console.warn('image upload failed', e && e.message);
-      }
-    }
-
-    const parsedMenu = (menuItems && typeof menuItems === 'string') ? JSON.parse(menuItems) : (menuItems || []);
-    const parsedHours = (weeklyHours && typeof weeklyHours === 'string') ? JSON.parse(weeklyHours) : (weeklyHours || []);
-
-    const vendor = await Vendor.create({ name, phone, menuItems: parsedMenu, images, weeklyHours: parsedHours });
-    return res.json({ message: 'Vendor created', vendor });
-  } catch (err) {
-    console.error('createVendor error', err);
-    return res.status(500).json({ message: 'Error creating vendor' });
-  }
-};
-
-exports.updateVendor = async (req, res) => {
-  try {
-    const id = req.params.id;
-    // guard against non-ObjectId local IDs (e.g., local-12345) which will cause Mongoose CastError
-    if (!mongoose.isValidObjectId(id)) return res.status(404).json({ message: 'Vendor not found' });
-    const vendor = await Vendor.findById(id);
-    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
-
-    const { name, phone, menuItems, weeklyHours, existingImages } = req.body || {};
-    if (name) vendor.name = name;
-    if (phone) vendor.phone = phone;
-
-    if (menuItems) vendor.menuItems = typeof menuItems === 'string' ? JSON.parse(menuItems) : menuItems;
-    if (weeklyHours) vendor.weeklyHours = typeof weeklyHours === 'string' ? JSON.parse(weeklyHours) : weeklyHours;
-
-    // preserve any existing images client sent, then append newly uploaded ones
-    const keep = [];
-    if (existingImages) {
-      try { const parsed = typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages; if (Array.isArray(parsed)) parsed.forEach(u => keep.push({ url: u })); } catch (e) {}
-    }
-
-    const files = req.files || [];
-    for (const f of files) {
-      try {
-        const result = await uploadToCloudinary(f.buffer, 'lets-eat-local');
-        keep.push({ url: result.secure_url || result.url, public_id: result.public_id });
-      } catch (e) { console.warn('image upload failed', e && e.message); }
-    }
-
-    vendor.images = keep;
-    await vendor.save();
-    return res.json({ message: 'Vendor updated', vendor });
-  } catch (err) {
-    console.error('updateVendor error', err);
-    return res.status(500).json({ message: 'Error updating vendor' });
-  }
-};
-
-exports.deleteVendor = async (req, res) => {
-  try {
-    const id = req.params.id;
-    // ignore requests that use local-only IDs created by the admin UI fallback
-    if (!mongoose.isValidObjectId(id)) return res.status(404).json({ message: 'Vendor not found' });
-    const v = await Vendor.findByIdAndDelete(id);
-    if (!v) return res.status(404).json({ message: 'Vendor not found' });
-    return res.json({ message: 'Vendor deleted' });
-  } catch (err) {
-    console.error('deleteVendor error', err);
-    return res.status(500).json({ message: 'Error deleting vendor' });
-  }
-};
+// ...existing code...
 
 exports.toggleDriverStatus = async (req, res) => {
   try {
