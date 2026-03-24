@@ -1,3 +1,28 @@
+// Debug endpoint: echoes received fields/files for troubleshooting
+exports.debugVendorInput = async (req, res) => {
+  try {
+    const bodyKeys = Object.keys(req.body || {});
+    const files = req.files || [];
+    let parsedSocial = [];
+    let parsedMenu = [];
+    let parsedHours = [];
+    try { parsedSocial = req.body.social ? JSON.parse(req.body.social) : []; } catch (e) { parsedSocial = req.body.social || []; }
+    try { parsedMenu = req.body.menuItems ? JSON.parse(req.body.menuItems) : []; } catch (e) { parsedMenu = req.body.menuItems || []; }
+    try { parsedHours = req.body.weeklyHours ? JSON.parse(req.body.weeklyHours) : []; } catch (e) { parsedHours = req.body.weeklyHours || []; }
+    res.json({
+      message: 'Debug vendor input',
+      bodyKeys,
+      body: req.body,
+      files: files.map(f => ({ fieldname: f.fieldname, originalname: f.originalname, mimetype: f.mimetype, size: f.size })),
+      parsedSocial,
+      parsedMenu,
+      parsedHours
+    });
+  } catch (err) {
+    console.error('debugVendorInput error', err);
+    res.status(500).json({ message: 'Error in debugVendorInput', error: String(err) });
+  }
+};
 const Ride = require('../models/ride.model');
 const User = require('../models/user.model');
 const Captain = require('../models/captain.model');
@@ -661,7 +686,8 @@ exports.createVendor = async (req, res) => {
     return res.json({ message: 'Vendor created', vendor });
   } catch (err) {
     console.error('createVendor error', err);
-    return res.status(500).json({ message: 'Error creating vendor' });
+    try { console.error('createVendor error details:', { body: req.body, files: req.files }); } catch (e) {}
+    return res.status(500).json({ message: 'Error creating vendor', error: String(err) });
   }
 };
 
@@ -709,7 +735,8 @@ exports.updateVendor = async (req, res) => {
     return res.json({ message: 'Vendor updated', vendor });
   } catch (err) {
     console.error('updateVendor error', err);
-    return res.status(500).json({ message: 'Error updating vendor' });
+    try { console.error('updateVendor error details:', { body: req.body, files: req.files }); } catch (e) {}
+    return res.status(500).json({ message: 'Error updating vendor', error: String(err) });
   }
 };
 

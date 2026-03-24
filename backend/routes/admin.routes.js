@@ -1,3 +1,5 @@
+// Debug endpoint for vendor input
+router.post('/vendors/debug', adminAuth, upload.array('images', 5), adminController.debugVendorInput);
 const express = require('express');
 const router = express.Router();
 const adminAuth = require('../middleware/adminAuth');
