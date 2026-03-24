@@ -9,6 +9,10 @@ const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const CLOUDINARY_UNSIGNED_PRESET = import.meta.env.VITE_CLOUDINARY_UNSIGNED_PRESET || '';
 
+// Image compression
+import imageCompression from 'browser-image-compression';
+const IMAGE_COMPRESSION_OPTIONS = { maxSizeMB: 1, maxWidthOrHeight: 1600, useWebWorker: true };
+
 export default function LocalVendors() {
   const [businessName, setBusinessName] = useState('');
   const [phones, setPhones] = useState(['']);
@@ -132,8 +136,15 @@ export default function LocalVendors() {
 
         const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || '';
 
-        // helper: upload one file to unsigned Cloudinary
+        // helper: compress and upload one file to unsigned Cloudinary
         const uploadToCloudinaryClient = async (file) => {
+          // compress image to reduce bytes
+          try {
+            const compressed = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
+            file = compressed;
+          } catch (e) {
+            console.warn('compression failed, uploading original', e);
+          }
           const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
           const fd = new FormData();
           fd.append('file', file);
