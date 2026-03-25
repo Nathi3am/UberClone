@@ -11,6 +11,11 @@ node_modules
 **/serviceAccountKey*.json
 backend/app.yaml
 
+# Local or environment files that may contain secrets
+"Email OTP flow"/.env
+frontend/.env.production
+peak-admin/.env*
+
 # IDE
 .vscode/
 
