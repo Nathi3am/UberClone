@@ -13,18 +13,23 @@ process.on('uncaughtException', (error) => {
 
 const server = http.createServer(app);
 
-// ensure settings document exists on startup
+// ensure settings document exists on startup only if DB connected
 try {
+    const mongoose = require('mongoose');
     const Settings = require('./models/settings.model');
     const initializeSettings = async () => {
         try {
+            if (!mongoose.connection || mongoose.connection.readyState !== 1) {
+                console.warn('[init] Database not connected; skipping Settings initialization');
+                return;
+            }
             const existing = await Settings.findOne();
             if (!existing) {
                 await Settings.create({ pricePerKm: 10, baseFare: 5, commissionRate: 20 });
                 console.log('Initialized default Settings document');
             }
         } catch (e) {
-            console.error('Failed to initialize settings', e);
+            console.error('Failed to initialize settings', e && e.message ? e.message : e);
         }
     };
     initializeSettings();

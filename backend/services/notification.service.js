@@ -23,21 +23,36 @@ try {
     // Option 2: Local file path (for local dev)
     else if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
         const path = require('path');
+        const fs = require('fs');
         const resolvedPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
-        serviceAccount = require(resolvedPath);
+        if (fs.existsSync(resolvedPath)) {
+            try {
+                const raw = fs.readFileSync(resolvedPath, 'utf8');
+                serviceAccount = JSON.parse(raw);
+            } catch (e) {
+                console.warn('[push] Failed to load/parse Firebase service account file:', e && e.message ? e.message : e);
+            }
+        } else {
+            console.warn('[push] Firebase service account file not found at', resolvedPath);
+        }
     }
 
-    if (serviceAccount) {
-        if (!admin.apps.length) {
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-            });
-        }
+    if (serviceAccount && typeof serviceAccount === 'object') {
+        try {
+            if (!admin.apps.length) {
+                admin.initializeApp({
+                    credential: admin.credential.cert(serviceAccount),
+                });
+            }
 
-        messaging = admin.messaging();
-        console.log('[push] Firebase Admin initialized — push notifications enabled');
+            messaging = admin.messaging();
+            console.log('[push] Firebase Admin initialized — push notifications enabled');
+        } catch (e) {
+            console.warn('[push] Firebase Admin init failed during initializeApp:', e && e.message ? e.message : e);
+            messaging = null;
+        }
     } else {
-        console.warn('[push] No Firebase credentials found — push notifications disabled');
+        console.warn('[push] No valid Firebase credentials found — push notifications disabled');
     }
 } catch (err) {
     console.warn('[push] Firebase Admin init failed:', err && err.message ? err.message : err);
