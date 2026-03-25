@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Sample pre-commit hook to run detect-secrets or trufflehog
+set -e
+if command -v detect-secrets >/dev/null 2>&1; then
+  echo "Running detect-secrets..."
+  detect-secrets-hook --baseline .secrets.baseline
+else
+  echo "detect-secrets not found, skipping. Install with: pip install detect-secrets"
+fi
+
+if command -v trufflehog >/dev/null 2>&1; then
+  echo "Running trufflehog quick scan..."
+  trufflehog filesystem --no-verify --max-depth 3 . || true
+fi
+
+echo "Pre-commit secret scan completed."
