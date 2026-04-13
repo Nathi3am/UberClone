@@ -7,6 +7,11 @@ import UserSignup from "./pages/UserSignup";
 import CaptainLogin from "./pages/CaptainLogin";
 import CaptainSignup from "./pages/CaptainSignup";
 import Home from "./pages/Home";
+import Safety from "./pages/Safety";
+import Support from "./pages/Support";
+import Help from "./pages/Help";
+import About from "./pages/About";
+import Privacy from "./pages/Privacy";
 import UserProtectedWrapper from "./pages/UserProtectedWrapper";
 import UserLogout from "./pages/UserLogout";
 import CaptainHome from "./pages/CaptainHome";
@@ -28,6 +33,10 @@ import CaptainRides from "./pages/captain/CaptainRides";
 import SpecialRequests from "./pages/SpecialRequests";
 // ...existing code...
 import VendorDetails from "./pages/VendorDetails";
+import LetsEatLocal from "./pages/LetsEatLocal";
+import MarketingLanding from "./pages/marketing/Landing";
+import PublicDashboard from "./pages/marketing/DashboardPublic";
+import Prototype from "./pages/marketing/Prototype";
 import AdminDashboard from "./pages/AdminDashboard";
 import { AdminProvider } from "./admin/context/AdminContext";
 import AdminLayout from "./admin/layout/AdminLayout";
@@ -40,8 +49,10 @@ import AdminSpecialRequests from "./admin/pages/SpecialRequests";
 import AdminSpecialTripsDrivers from "./admin/pages/SpecialTripsDrivers";
 import { ToastContainer } from "react-toastify";
 import GlobalModal from './components/GlobalModal';
-import BottomNav from "./components/BottomNav";
 import FloatingRideButton from "./components/FloatingRideButton";
+import BottomNav from "./components/BottomNav";
+import SideDrawer from './components/SideDrawer';
+import { DrawerProvider } from './context/DrawerContext';
 import { usePushNotifications } from "./hooks/usePushNotifications";
 import { UserDataContext } from "./context/UserContext.jsx";
 
@@ -56,7 +67,7 @@ const App = () => {
   const isCaptain = Boolean(captainToken);
   const isPushEnabled = Boolean(captainToken || userToken);
   usePushNotifications(isPushEnabled, isCaptain ? 'captain' : 'user');
-  const hideNavRoutes = ["/login", "/signup", "/", "/account/trips", "/vendors"];
+  const hideNavRoutes = ["/", "/lets-eat-local", "/signup", "/captain-signup", "/login", "/captain-login"];
   const hiddenRoutes = [
     "/login",
     "/signup",
@@ -85,6 +96,7 @@ const App = () => {
   };
 
   return (
+    <DrawerProvider>
     <div className="text-white min-h-screen relative z-[1]">
       <div className="pb-20">
         <AnimatePresence mode="wait">
@@ -207,7 +219,17 @@ const App = () => {
               ></Route>
               <Route path="/special-requests" element={<SpecialRequests />} />
 // ...existing code...
+              <Route path="/vendors" element={<LetsEatLocal />} />
+              <Route path="/lets-eat-local" element={<LetsEatLocal />} />
               <Route path="/vendors/:id" element={<VendorDetails />} />
+              <Route path="/safety" element={<Safety />} />
+              <Route path="/support" element={<Support />} />
+              <Route path="/help" element={<Help />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/site" element={<MarketingLanding />} />
+              <Route path="/web-dashboard" element={<PublicDashboard />} />
+              <Route path="/prototype" element={<Prototype />} />
               <Route path="/admin" element={<AdminProvider><AdminLayout /></AdminProvider>}>
                 <Route index element={<Dashboard />} />
                 <Route path="dashboard" element={<Dashboard />} />
@@ -231,7 +253,9 @@ const App = () => {
       )}
       <ToastContainer />
       <GlobalModal open={modalOpen} title={modalData.title} message={modalData.message} onClose={handleClose} />
+      <SideDrawer />
     </div>
+    </DrawerProvider>
   );
 };
 

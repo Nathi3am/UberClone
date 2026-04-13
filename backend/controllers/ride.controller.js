@@ -1088,7 +1088,7 @@ module.exports.cancelRide = async (req, res) => {
                     const io = getIO && getIO();
                     // prefer socketId if available
                     if (ride.captain.socketId) {
-                        sendMessageToSocketId(ride.captain.socketId, { event: 'ride-cancelled', data: { rideId: ride._id, message: 'Passenger cancelled the ride' } });
+                        sendMessageToSocketId(ride.captain.socketId, { event: 'ride-cancelled', data: { rideId: ride._id, message: 'Passenger cancelled the ride', user: ride.user || null } });
                         // extra safety emits
                         try { sendMessageToSocketId(ride.captain.socketId, { event: 'end-chat', data: { rideId: ride._id } }); } catch (e) {}
                         try { sendMessageToSocketId(ride.captain.socketId, { event: 'rideStatusUpdate', data: ride }); } catch (e) {}
@@ -1096,14 +1096,14 @@ module.exports.cancelRide = async (req, res) => {
                     } else if (onlineDrivers && ride.captain._id && onlineDrivers[String(ride.captain._id)]) {
                         const sid = onlineDrivers[String(ride.captain._id)];
                         if (io) {
-                            io.to(sid).emit('ride-cancelled', { rideId: ride._id, message: 'Passenger cancelled the ride' });
+                            io.to(sid).emit('ride-cancelled', { rideId: ride._id, message: 'Passenger cancelled the ride', user: ride.user || null });
                             // extra safety emits
                             try { io.to(sid).emit('end-chat', { rideId: ride._id }); } catch (e) {}
                             try { io.to(sid).emit('rideStatusUpdate', ride); } catch (e) {}
                         }
                         console.log('cancelRide: emitted to onlineDrivers socket', sid);
                     } else if (io && ride.captain._id) {
-                        try { io.to(String(ride.captain._id)).emit('ride-cancelled', { rideId: ride._id, message: 'Passenger cancelled the ride' }); } catch (e) {}
+                        try { io.to(String(ride.captain._id)).emit('ride-cancelled', { rideId: ride._id, message: 'Passenger cancelled the ride', user: ride.user || null }); } catch (e) {}
                         try { io.to(String(ride.captain._id)).emit('end-chat', { rideId: ride._id }); } catch (e) {}
                         try { io.to(String(ride.captain._id)).emit('rideStatusUpdate', ride); } catch (e) {}
                         console.log('cancelRide: emitted to captain room');
@@ -1163,7 +1163,7 @@ module.exports.cancelRideById = async (req, res) => {
                     // prefer direct socketId if captain object contains it
                     if (ride.captain && ride.captain.socketId) {
                         const { sendMessageToSocketId } = require('../socket');
-                        sendMessageToSocketId(ride.captain.socketId, { event: 'ride-cancelled', data: { rideId: ride._id, message: 'Passenger cancelled the ride' } });
+                        sendMessageToSocketId(ride.captain.socketId, { event: 'ride-cancelled', data: { rideId: ride._id, message: 'Passenger cancelled the ride', user: ride.user || null } });
                         try { sendMessageToSocketId(ride.captain.socketId, { event: 'end-chat', data: { rideId: ride._id } }); } catch (e) {}
                         try { sendMessageToSocketId(ride.captain.socketId, { event: 'rideStatusUpdate', data: ride }); } catch (e) {}
                         console.log('cancelRideById: sentMessageToSocketId', ride.captain.socketId);
@@ -1173,13 +1173,13 @@ module.exports.cancelRideById = async (req, res) => {
                         if (onlineDrivers && onlineDrivers[driverId]) {
                             const sid = onlineDrivers[driverId];
                             if (io) {
-                                io.to(sid).emit('ride-cancelled', { rideId: ride._id, message: 'Passenger cancelled the ride' });
+                                io.to(sid).emit('ride-cancelled', { rideId: ride._id, message: 'Passenger cancelled the ride', user: ride.user || null });
                                 try { io.to(sid).emit('end-chat', { rideId: ride._id }); } catch (e) {}
                                 try { io.to(sid).emit('rideStatusUpdate', ride); } catch (e) {}
                             }
                             console.log('cancelRideById: emitted to onlineDrivers socketId', sid);
                         } else if (io) {
-                            try { io.to(driverId.toString()).emit('ride-cancelled', { rideId: ride._id, message: 'Passenger cancelled the ride' }); } catch(e) { console.error('cancelRideById: emit to driver room failed', e); }
+                            try { io.to(driverId.toString()).emit('ride-cancelled', { rideId: ride._id, message: 'Passenger cancelled the ride', user: ride.user || null }); } catch(e) { console.error('cancelRideById: emit to driver room failed', e); }
                             try { io.to(driverId.toString()).emit('end-chat', { rideId: ride._id }); } catch(e) {}
                             try { io.to(driverId.toString()).emit('rideStatusUpdate', ride); } catch(e) {}
                             console.log('cancelRideById: emitted to driver room', driverId.toString());

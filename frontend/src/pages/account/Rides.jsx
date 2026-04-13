@@ -1,4 +1,5 @@
 import { useEffect, useState, useContext, useRef } from "react";
+import { useNavigate } from 'react-router-dom';
 import axios from "axios";
 import API from '../../config/api';
 import RideChat from "../../components/RideChat";
@@ -20,6 +21,7 @@ const RiderRides = () => {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   const [showRatingPopup, setShowRatingPopup] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [completedRideId, setCompletedRideId] = useState(null);
   const [selectedRating, setSelectedRating] = useState(0);
   const [submittingRating, setSubmittingRating] = useState(false);
@@ -27,13 +29,17 @@ const RiderRides = () => {
   const [showChat, setShowChat] = useState(false);
   const [bufferedChatMessages, setBufferedChatMessages] = useState([]);
   const [showLive, setShowLive] = useState(false);
-  const { activeRide, setActiveRide } = useContext(RideContext);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelCountdown, setCancelCountdown] = useState(0);
+  const [cancelWindowExpired, setCancelWindowExpired] = useState(false);
+  const { activeRide, setActiveRide, markRideCancelled, isRideCancelled } = useContext(RideContext);
   const [showDriverDetails, setShowDriverDetails] = useState(false);
   const [showVehicleZoom, setShowVehicleZoom] = useState(false);
   const [zoomSrc, setZoomSrc] = useState(null);
   const [zoomScale, setZoomScale] = useState(1);
   const [zoomTranslate, setZoomTranslate] = useState({ x: 0, y: 0 });
   const pinchRef = useRef({ initialDist: 0, initialScale: 1, lastTouch: null });
+  // Cancelled ride IDs are now tracked in RideContext (persisted to localStorage)
   const API_BASE = API;
 
   useEffect(() => {
@@ -44,6 +50,7 @@ const RiderRides = () => {
   const socket = socketCtx.socket;
   const userCtx = useContext(UserDataContext) || {};
   const user = userCtx.user;
+  const navigate = useNavigate();
 
   // Join user's personal socket room and listen for ride end/status updates
   useEffect(() => {
@@ -83,6 +90,17 @@ const RiderRides = () => {
           fetchRides();
         } catch (e) {}
       };
+
+      const handleRideCancelled = (payload) => {
+        try {
+          const rideId = (payload && (payload.rideId || payload._id)) || null;
+          if (rideId) markRideCancelled(rideId);
+          else setActiveRide(null);
+          setShowLive(false);
+          setShowChat(false);
+          fetchRides();
+        } catch (e) {}
+      };
       const playBeepUser = () => {
         try {
           const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -108,6 +126,8 @@ const RiderRides = () => {
         socket.on('ride-completed', handleRideEnded);
         socket.on('rideStatusUpdate', handleRideStatusUpdate);
         socket.on('activeRideCleared', handleActiveRideCleared);
+        socket.on('ride-cancelled', handleRideCancelled);
+        socket.on('rideCancelled', handleRideCancelled);
         try { socket.on('activeRideCleared', () => { try { playBeepUser(); } catch (e) {} }); } catch (e) {}
       }
 
@@ -131,6 +151,8 @@ const RiderRides = () => {
             socket.off('ride-completed', handleRideEnded);
             socket.off('rideStatusUpdate', handleRideStatusUpdate);
             socket.off('activeRideCleared', handleActiveRideCleared);
+            socket.off('ride-cancelled', handleRideCancelled);
+            socket.off('rideCancelled', handleRideCancelled);
           }
         } catch (e) {}
         try { if (socket) { socket.off('receive-message'); socket.off('receive-ride-message'); socket.off('chat-message'); } } catch (e) {}
@@ -181,7 +203,11 @@ const RiderRides = () => {
           ride.status === "ongoing"
       );
 
-      setActiveRide(currentActiveRide || null);
+      // Only set active ride if it is genuinely active AND was not cancelled (checked via localStorage).
+      const safeActiveRide = currentActiveRide && !isRideCancelled(currentActiveRide._id)
+        ? currentActiveRide
+        : null;
+      setActiveRide(safeActiveRide);
       return data;
     } catch (err) {
       console.error("Failed to fetch rides:", err);
@@ -204,6 +230,32 @@ const RiderRides = () => {
     }
   };
 
+  useEffect(() => {
+    let iv = null;
+    try {
+      // start 45s countdown only for newly active cancelable rides
+      if (activeRide && (activeRide.status === 'pending' || activeRide.status === 'accepted')) {
+        setCancelCountdown(45);
+        setCancelWindowExpired(false);
+        iv = setInterval(() => {
+          setCancelCountdown((c) => {
+            if (c <= 1) {
+              clearInterval(iv);
+              setCancelWindowExpired(true);
+              return 0;
+            }
+            return c - 1;
+          });
+        }, 1000);
+      } else {
+        // reset when no active or not cancelable
+        setCancelCountdown(0);
+        setCancelWindowExpired(false);
+      }
+    } catch (e) {}
+    return () => { try { if (iv) clearInterval(iv); } catch (e) {} };
+  }, [activeRide?._id, activeRide?.status]);
+
   const submitRating = async (rating) => {
     try {
       const token = localStorage.getItem('token');
@@ -222,6 +274,45 @@ const RiderRides = () => {
     } catch (e) {
       console.error('Failed to submit rating', e);
       setSubmittingRating(false);
+    }
+  };
+
+  const cancelRide = async () => {
+    try {
+      if (!activeRide || !activeRide._id) return;
+      const ok = window.confirm('Are you sure you want to cancel this ride?');
+      if (!ok) return;
+      setCancelling(true);
+      if (cancelWindowExpired) {
+        try { alert('Cancel window has expired'); } catch (er) {}
+        setCancelling(false);
+        return;
+      }
+      const rideId = activeRide._id;
+      const token = localStorage.getItem('token');
+
+      // 1. Immediately wipe active ride from UI and persist the cancellation to localStorage
+      markRideCancelled(rideId);
+      setShowLive(false);
+      setShowChat(false);
+      setCancelCountdown(0);
+      setCancelWindowExpired(false);
+
+      // 2. Optimistically mark it cancelled in local list so ghost cannot reappear
+      setRides(prev => prev.map(r =>
+        r._id === rideId ? { ...r, status: 'cancelled' } : r
+      ));
+
+      // 3. Hit backend
+      await axios.post(`${API}/rides/cancel`, { rideId }, { headers: { Authorization: `Bearer ${token}` } });
+
+      // 4. Sync with server — fetchRides re-sets activeRide only if backend still has an active ride
+      await fetchRides();
+    } catch (e) {
+      console.error('Failed to cancel ride', e);
+      try { alert('Failed to cancel ride. Please try again.'); } catch (er) {}
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -308,6 +399,7 @@ const RiderRides = () => {
 
                 <div className="mt-6 flex gap-3 justify-center">
                   <button onClick={() => { setShowRatingPopup(false); setSelectedRating(0); }} className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:bg-white/10 transition-colors">Cancel</button>
+                  <button onClick={() => { setShowPaymentModal(true); }} className="px-6 py-2.5 rounded-xl text-white font-semibold bg-blue-600 hover:bg-blue-700 transition-all">Make Card Payment</button>
                   <button
                     onClick={() => { if (selectedRating > 0) submitRating(selectedRating); }}
                     disabled={selectedRating === 0 || submittingRating}
@@ -328,6 +420,28 @@ const RiderRides = () => {
                 <div className="text-sm text-gray-400 mt-2">We appreciate your feedback.</div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ──── Payment Modal (bank details) ──── */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50">
+          <div className="relative bg-[#0e1529] border border-white/10 p-6 rounded-2xl w-[520px] max-w-[94%] text-center shadow-2xl">
+            <button className="absolute right-3 top-3 text-gray-400" onClick={() => setShowPaymentModal(false)}>Close</button>
+            <h3 className="text-xl font-semibold text-white mb-3">Bank Account Details</h3>
+            <div className="text-sm text-gray-300 space-y-2">
+              <div><strong>Bank:</strong> Standard Bank</div>
+              <div><strong>Account Number:</strong> 10 09 810 137 2</div>
+              <div><strong>Branch Code:</strong> 3544</div>
+              <div><strong>Account Type:</strong> Current account</div>
+              <div><strong>SWIFT Code:</strong> SBZA ZA JJ</div>
+              <div><strong>Payshap ID:</strong> 071 437 7884</div>
+            </div>
+            <div className="mt-4 text-sm text-gray-300">Please use your email address as the payment reference{user && user.email ? ` (${user.email})` : ''}.</div>
+            <div className="mt-6 flex justify-center gap-3">
+              <button onClick={() => setShowPaymentModal(false)} className="px-4 py-2 rounded-xl bg-white/5 text-gray-300">Close</button>
+            </div>
           </div>
         </div>
       )}
@@ -555,6 +669,16 @@ const RiderRides = () => {
                     <circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/>
                   </svg>
                   Live Location
+                </button>
+                <button
+                  onClick={cancelRide}
+                  disabled={cancelling || cancelWindowExpired}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 ${cancelling || cancelWindowExpired ? 'bg-gray-700/30 border-white/6 text-white/60 cursor-not-allowed' : 'bg-red-500/15 border border-red-500/20 text-red-400 hover:bg-red-500/25'} rounded-xl font-medium text-sm transition-colors`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18" /><path d="M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" /><path d="M10 11v6" /><path d="M14 11v6" />
+                  </svg>
+                  {cancelling ? 'Cancelling...' : (cancelWindowExpired ? 'Cancel Unavailable' : `Cancel Ride${cancelCountdown > 0 ? ` (${cancelCountdown}s)` : ''}`)}
                 </button>
               </div>
             </div>

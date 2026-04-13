@@ -47,6 +47,8 @@ allowedOrigins.push('http://192.168.0.24:5174');
 allowedOrigins.push('http://192.168.0.24:5176');
 // Add current Vite network URL so mobile devices on the same LAN can access the dev frontend
 allowedOrigins.push('http://192.168.0.24:5177');
+// Allow the admin site hosted on Render
+allowedOrigins.push('https://vexomoveadmin.onrender.com');
 
 const isAllowedOrigin = (origin) => {
     if (!origin) return true; // non-browser clients / some webview requests

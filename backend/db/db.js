@@ -2,7 +2,10 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 dotenv.config();
 
-const URI = process.env.MONGO_URI;
+// Accept only valid Mongo URIs; treat placeholder values as absent so local fallback works.
+const rawURI = process.env.MONGO_URI;
+const uriRegex = /^mongodb(\+srv)?:\/\//i;
+const URI = rawURI && uriRegex.test(rawURI) ? rawURI : null;
 const LOCAL_URI = process.env.MONGO_LOCAL_URI || 'mongodb://127.0.0.1:27017/peakuber';
 
 async function connectToDb() {
@@ -12,6 +15,24 @@ async function connectToDb() {
         serverSelectionTimeoutMS: 10000,
     };
 
+    // If no primary URI is configured or it looks like a placeholder, fall back to local in development.
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (!URI) {
+        if (isDev) {
+            console.warn('[db] MONGO_URI not set or placeholder detected; using local MongoDB for development:', LOCAL_URI);
+            try {
+                await mongoose.connect(LOCAL_URI, options);
+                console.log('Connected to peakuber database (fallback local)');
+                return;
+            } catch (err2) {
+                console.error('Fallback local MongoDB connection failed:', err2 && err2.message ? err2.message : err2);
+                console.error('[db] Development mode: continuing without database connection');
+                return;
+            }
+        }
+        throw new Error('MONGO_URI not configured for production');
+    }
+
     try {
         await mongoose.connect(URI, options);
         console.log('Connected to peakuber database (primary)');
@@ -20,7 +41,6 @@ async function connectToDb() {
         console.error('Primary MongoDB connection error:', err && err.message ? err.message : err);
 
         // If SRV lookup / network to Atlas fails, attempt a local fallback in development
-        const isDev = process.env.NODE_ENV !== 'production';
         const message = err && err.message ? err.message.toLowerCase() : '';
         const isSrvError = err && (
             err.code === 'ENOTFOUND' ||

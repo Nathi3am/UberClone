@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import polyline from '@mapbox/polyline';
 import axios from 'axios';
 import { FiDollarSign, FiTrendingUp, FiTrendingDown, FiStar, FiClock, FiShield } from 'react-icons/fi';
@@ -51,6 +52,9 @@ const CaptainHome = () => {
   const [navRoutePolyline, setNavRoutePolyline] = useState(null);
   const [showChat, setShowChat] = useState(false);
   const [bufferedChatMessages, setBufferedChatMessages] = useState([]);
+  const [cancelPopup, setCancelPopup] = useState(null);
+
+  const navigate = useNavigate();
   const [simulateActive, setSimulateActive] = useState(false);
   const simulateRef = useRef(null);
   const [simulateDropoffActive, setSimulateDropoffActive] = useState(false);
@@ -167,15 +171,16 @@ const CaptainHome = () => {
     });
 
     // Handle ride cancellations from users
-    socket.on('ride-cancelled', ({ rideId, message, ...rest }) => {
-      console.log('ride-cancelled received for', rideId, message);
+    socket.on('ride-cancelled', ({ rideId, message, user, ...rest }) => {
+      console.log('ride-cancelled received for', rideId, message, user);
       // clear any incoming or current trip state and return driver to waiting
       setIncomingRide(null);
       setTripActive(false);
       setCurrentRide(null);
       try { window.sessionStorage.removeItem('captain_pending_ride_request'); } catch (e) {}
-      // notify driver briefly
-      try { alert(message || 'Passenger cancelled the ride.'); } catch (e) {}
+      // show a small popup modal with passenger name
+      const passengerName = (user && (user.fullname || user.fullName || user.name || (user.firstname && `${user.firstname} ${user.lastname || ''}`))) ? (user.fullname || user.fullName || user.name || `${user.firstname || ''} ${user.lastname || ''}`.trim()) : null;
+      setCancelPopup({ rideId: rideId || null, message: message || 'Passenger cancelled the ride.', userName: passengerName });
     });
 
     return () => {
@@ -184,6 +189,37 @@ const CaptainHome = () => {
       socket.off('ride-cancelled');
     };
   }, [socket, captain, isOnline]);
+
+  // small modal for ride-cancelled notification
+  const renderCancelPopup = () => {
+    if (!cancelPopup) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="bg-white rounded-xl p-6 w-[420px] max-w-[94%] text-center">
+          <h3 className="text-lg font-semibold mb-2">Ride Cancelled</h3>
+          <p className="text-sm text-gray-700 mb-4">{cancelPopup.userName ? <>{cancelPopup.userName} has cancelled the ride.</> : cancelPopup.message}</p>
+          <div className="flex justify-center">
+            <button
+              onClick={() => {
+                try {
+                  // end ride locally
+                  setTripActive(false);
+                  setCurrentRide(null);
+                  setCancelPopup(null);
+                  try { window.sessionStorage.removeItem('captain_pending_ride_request'); } catch (e) {}
+                  // navigate to captain home
+                  navigate('/captain-home');
+                } catch (e) { console.error('Error handling cancel popup OK', e); }
+              }}
+              className="px-4 py-2 rounded-lg bg-indigo-600 text-white"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     const onPushRideRequest = async (evt) => {
@@ -918,6 +954,7 @@ const CaptainHome = () => {
 
   return (
     <>
+    {renderCancelPopup()}
     <div className="min-h-screen w-screen text-white p-4">
       <div className="max-w-4xl mx-auto">
         {/* Driver Header */}
@@ -1148,7 +1185,7 @@ const CaptainHome = () => {
           <div className="mb-4">
             <ActiveTripCard
               trip={currentRide || incomingRide}
-              onEnd={() => setTripActive(false)}
+                onEnd={() => setTripActive(false)}
               onNavigate={(opts) => {
                 const trip = currentRide || opts?.trip;
                 const pc = trip?.pickupCoords || trip?.pickup?.coordinates || trip?.pickup_location;
@@ -1160,6 +1197,92 @@ const CaptainHome = () => {
                 }
               }}
               onChat={(trip) => { setCurrentRide(trip); setShowChat(true); }}
+              onSimulate={(trip) => {
+                // Start a simulation along the ride's route or simple interpolation
+                try {
+                  if (!trip) return;
+                  // Stop any existing simulation
+                  if (simulateRef.current) {
+                    clearInterval(simulateRef.current);
+                    simulateRef.current = null;
+                  }
+
+                  const normalizePath = (raw) => {
+                    if (!raw) return [];
+                    // If it's an encoded polyline string
+                    if (typeof raw === 'string' && raw.trim()) {
+                      try { const dec = polyline.decode(raw); return dec.map(([lat, lng]) => ({ lat: Number(lat), lng: Number(lng) })); } catch (e) { return []; }
+                    }
+                    // If it's an array of lat/lng pairs or objects
+                    if (Array.isArray(raw) && raw.length) {
+                      return raw.map((p) => {
+                        if (!p) return null;
+                        if (Array.isArray(p) && p.length >= 2) return { lat: Number(p[0]), lng: Number(p[1]) };
+                        return { lat: Number(p.lat ?? p.latitude ?? 0), lng: Number(p.lng ?? p.longitude ?? 0) };
+                      }).filter(Boolean);
+                    }
+                    return [];
+                  };
+
+                  let path = [];
+                  if (trip.routePolyline) path = normalizePath(trip.routePolyline);
+                  if ((!path || !path.length) && trip.routePath) path = normalizePath(trip.routePath);
+                  // fallback: use pickup -> dropoff interpolation
+                  if ((!path || !path.length) && (trip.pickupCoords || trip.pickup?.coordinates) && (trip.dropCoords || trip.destination?.coordinates)) {
+                    const pc = trip.pickupCoords || trip.pickup?.coordinates;
+                    const dc = trip.dropCoords || trip.destination?.coordinates;
+                    const start = Array.isArray(pc) ? { lat: Number(pc[0]), lng: Number(pc[1]) } : { lat: Number(pc.lat ?? pc.latitude ?? 0), lng: Number(pc.lng ?? pc.longitude ?? 0) };
+                    const end = Array.isArray(dc) ? { lat: Number(dc[0]), lng: Number(dc[1]) } : { lat: Number(dc.lat ?? dc.latitude ?? 0), lng: Number(dc.lng ?? dc.longitude ?? 0) };
+                    const steps = 60;
+                    for (let i=0;i<=steps;i++) {
+                      const t = i/steps;
+                      path.push({ lat: start.lat + (end.lat - start.lat)*t, lng: start.lng + (end.lng - start.lng)*t });
+                    }
+                  }
+
+                  if (!path || !path.length) {
+                    // nothing to simulate
+                    return;
+                  }
+
+                  let idx = 0;
+                  setSimulateActive(true);
+                  setSimulatedDriverPosition(path[0]);
+                  simulateRef.current = setInterval(async () => {
+                    idx += 1;
+                    if (idx >= path.length) {
+                      // stop simulation
+                      clearInterval(simulateRef.current);
+                      simulateRef.current = null;
+                      setSimulateActive(false);
+                      setSimulatedDriverPosition(path[path.length - 1]);
+                      try {
+                        // auto-complete ride on simulation end
+                        if (trip && (trip._id || trip.id)) {
+                          const token = localStorage.getItem('captainToken') || localStorage.getItem('token');
+                          if (token) {
+                            try {
+                              const res = await axios.put(`${API}/rides/complete/${trip._id || trip.id}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                              // update local UI
+                              setTripActive(false);
+                              setCurrentRide(null);
+                              try { if (socket && typeof socket.emit === 'function') socket.emit('ride-completed', res?.data || { _id: trip._id || trip.id }); } catch (e) {}
+                            } catch (e) {
+                              console.error('Auto-complete ride failed', e);
+                            }
+                          } else {
+                            // no token: still clear local state
+                            setTripActive(false);
+                            setCurrentRide(null);
+                          }
+                        }
+                      } catch (e) { console.error('Error completing simulated ride', e); }
+                      return;
+                    }
+                    setSimulatedDriverPosition(path[idx]);
+                  }, 800);
+                } catch (e) { console.error('simulate error', e); }
+              }}
             />
             {showChat && currentRide && (
               <RideChat socket={socket} ride={currentRide} user={captain} otherUser={currentRide.user} initialMessages={bufferedChatMessages} onOpen={() => setBufferedChatMessages([])} onClose={() => setShowChat(false)} />

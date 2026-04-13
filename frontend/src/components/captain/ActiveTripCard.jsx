@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ActiveTripCard = ({ trip = {}, onEnd, onNavigate, onChat }) => {
+const ActiveTripCard = ({ trip = {}, onEnd, onNavigate, onChat, onSimulate }) => {
   // Support multiple ride object shapes: legacy fields and populated DB ride
   const passengerName = trip.passengerName || (trip.user && (
     (trip.user.fullname && (trip.user.fullname.firstname ? `${trip.user.fullname.firstname} ${trip.user.fullname.lastname || ''}` : trip.user.fullname))
@@ -28,16 +28,30 @@ const ActiveTripCard = ({ trip = {}, onEnd, onNavigate, onChat }) => {
     return rmins === 0 ? `${hrs} hr` : `${hrs} hr ${rmins} min`;
   }
 
+  // derive avatar and payment method
+  const avatar = (trip.user && (trip.user.avatar || trip.user.photo || trip.user.image || trip.user.profileImage)) || trip.userImage || trip.riderAvatar || null;
+  const paymentMethod = (trip.paymentMethod || trip.payment || trip.pmt || 'card').toString();
+
   return (
     <div className="rounded-2xl border border-white/10 backdrop-blur-xl bg-white/5 p-4 shadow-md">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-300">Passenger</p>
-          <p className="text-lg font-semibold">{passengerName || 'Passenger'}</p>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center overflow-hidden">
+            {avatar ? (
+              <img src={avatar} alt="passenger" className="w-full h-full object-cover" />
+            ) : (
+              <div className="text-sm font-semibold text-white">{(passengerName || 'P').substring(0,1)}</div>
+            )}
+          </div>
+          <div>
+            <p className="text-sm text-gray-300">Passenger</p>
+            <p className="text-lg font-semibold">{passengerName || 'Passenger'}</p>
+            <div className="text-xs text-gray-400 mt-0.5">Payment: <span className="font-medium text-white">{paymentMethod}</span></div>
+          </div>
         </div>
         <div className="text-right">
           <p className="text-sm text-gray-300">ETA</p>
-            <p className="font-semibold">{trip.etaDisplay || formatDuration(etaSeconds)}</p>
+          <p className="font-semibold">{trip.etaDisplay || formatDuration(etaSeconds)}</p>
         </div>
       </div>
 
@@ -51,6 +65,7 @@ const ActiveTripCard = ({ trip = {}, onEnd, onNavigate, onChat }) => {
       <div className="mt-4 flex gap-3">
         <button onClick={() => { if (typeof onChat === 'function') onChat(trip); }} className="flex-1 text-center px-4 py-2 rounded-xl bg-indigo-600">Chat</button>
         <button onClick={navigateToPickup} className="flex-1 text-center px-4 py-2 rounded-xl bg-emerald-600">Navigate</button>
+        <button onClick={() => { if (typeof onSimulate === 'function') onSimulate(trip); }} className="px-4 py-2 rounded-xl bg-blue-600">Simulate</button>
         <button onClick={onEnd} className="px-4 py-2 rounded-xl bg-red-600">End</button>
       </div>
     </div>

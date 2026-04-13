@@ -4,6 +4,8 @@ const RideRequestPopup = ({ ride, onAccept, onDecline }) => {
   const [countdown, setCountdown] = useState(60);
   const [fixedEarnings, setFixedEarnings] = useState(null);
   const fixedEarningsRideIdRef = React.useRef(null);
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [zoomSrc, setZoomSrc] = useState(null);
 
   // Use a time-based countdown so parent re-renders or identity changes
   // won't cause the timer to jump or duplicate intervals.
@@ -183,6 +185,9 @@ const RideRequestPopup = ({ ride, onAccept, onDecline }) => {
         : ride.user.fullname)) ||
     'Passenger';
 
+  const avatar = (ride.user && (ride.user.avatar || ride.user.photo || ride.user.image || ride.user.profileImage)) || ride.userImage || null;
+  const paymentMethod = (ride.paymentMethod || ride.payment || ride.pmt || ride.payment_method || 'card').toString();
+
   const pickupAddress = ride.pickupAddress || ride.pickup || ride.origin || '';
   const dropAddress = ride.dropAddress || ride.destination || ride.dropoff || '';
   const passengers = ride.passengers || ride.passengerCount || 1;
@@ -192,6 +197,7 @@ const RideRequestPopup = ({ ride, onAccept, onDecline }) => {
   const countdownColor = countdown <= 10 ? 'text-red-300' : countdown <= 20 ? 'text-amber-300' : 'text-white';
 
   return (
+    <>
     <div className="fixed top-4 left-1/2 z-50 w-[94%] max-w-md -translate-x-1/2 select-none">
       {/* Ambient glow ring behind card */}
       <div className="pointer-events-none absolute -inset-1 rounded-[28px] bg-gradient-to-br from-emerald-500/25 via-transparent to-blue-600/15 blur-2xl" />
@@ -225,21 +231,45 @@ const RideRequestPopup = ({ ride, onAccept, onDecline }) => {
 
         {/* ── Passenger row + earnings ── */}
         <div className="flex items-center gap-3.5 px-5 pt-4 pb-4 border-b border-white/[0.06]">
-          {/* Avatar initial */}
+          {/* Avatar */}
           <div className="relative shrink-0">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 text-white text-lg font-extrabold shadow-lg shadow-emerald-900/60">
-              {passengerName.charAt(0).toUpperCase()}
-            </div>
+            <button
+              onClick={() => {
+                if (!avatar) return;
+                setZoomSrc(avatar);
+                setZoomOpen(true);
+              }}
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 text-white text-lg font-extrabold shadow-lg shadow-emerald-900/60 overflow-hidden"
+              aria-label="View passenger profile"
+            >
+              {avatar ? (
+                <img src={avatar} alt="passenger" className="w-full h-full object-cover" />
+              ) : (
+                passengerName.charAt(0).toUpperCase()
+              )}
+            </button>
             <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#0b1120] bg-emerald-400" />
           </div>
 
           <div className="min-w-0 flex-1">
             <p className="truncate font-bold text-white text-[15px] leading-tight">{passengerName}</p>
-            <div className="mt-1 flex items-center gap-1.5">
-              <svg className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9 6a3 3 0 116 0 3 3 0 01-6 0zM17.2 16a1 1 0 01-1 1H3.8a1 1 0 01-1-1v-.5C2.8 13.567 6.034 12 10 12s7.2 1.567 7.2 3.5V16z" />
-              </svg>
-              <span className="text-[11px] text-gray-400">{passengers} {passengers === 1 ? 'passenger' : 'passengers'}</span>
+            <div className="mt-1 flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <svg className="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 6a3 3 0 116 0 3 3 0 01-6 0zM17.2 16a1 1 0 01-1 1H3.8a1 1 0 01-1-1v-.5C2.8 13.567 6.034 12 10 12s7.2 1.567 7.2 3.5V16z" />
+                </svg>
+                <span className="text-[11px] text-gray-400">{passengers} {passengers === 1 ? 'passenger' : 'passengers'}</span>
+              </div>
+              <div className="ml-2 flex items-center gap-1 px-2 py-1 rounded-full bg-white/[0.03] border border-white/[0.04]">
+                <svg className="h-3.5 w-3.5 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  {paymentMethod === 'cash' ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-3 0-5 2-5 5s2 5 5 5 5-2 5-5-2-5-5-5z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" />
+                  )}
+                </svg>
+                <span className="text-[11px] text-gray-300 font-medium">{paymentMethod === 'cash' ? 'Cash' : 'Card'}</span>
+              </div>
             </div>
           </div>
 
@@ -322,6 +352,21 @@ const RideRequestPopup = ({ ride, onAccept, onDecline }) => {
         </div>
       </div>
     </div>
+    {/* Image zoom modal */}
+    {zoomOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/70" onClick={() => setZoomOpen(false)} />
+        <div className="relative z-60 max-w-[90%] max-h-[90%] p-4">
+          <button onClick={() => setZoomOpen(false)} className="absolute -top-3 -right-3 z-70 bg-white/10 text-white rounded-full w-9 h-9 flex items-center justify-center">✕</button>
+          {zoomSrc ? (
+            <img src={zoomSrc} alt="passenger-large" className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-lg" />
+          ) : (
+            <div className="bg-white/5 text-white p-8 rounded-lg">No image available</div>
+          )}
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

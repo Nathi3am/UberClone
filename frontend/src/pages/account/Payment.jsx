@@ -4,7 +4,6 @@ import { toast } from "react-toastify";
 const Payment = () => {
   const MAX_CARDS = 3;
   const [cards, setCards] = useState([]);
-  const [showAddCard, setShowAddCard] = useState(false);
   const [formData, setFormData] = useState({
     cardholderName: "",
     cardNumber: "",
@@ -84,7 +83,6 @@ const Payment = () => {
       expiryDate: "",
       cvv: "",
     });
-    setShowAddCard(false);
     toast.success("Card added successfully");
   };
 
@@ -167,117 +165,15 @@ const Payment = () => {
         </div>
       )}
 
-      {/* Add Card Form */}
-      {!showAddCard && cards.length < MAX_CARDS && (
-        <button
-          onClick={() => setShowAddCard(true)}
-          className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold shadow-lg hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-95 transition-all duration-300"
-        >
-          + Add New Card
-        </button>
-      )}
-
-      {showAddCard && (
-        <div className="bg-[#121826]/70 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
-          <h3 className="text-xl font-semibold text-white mb-6">Add New Card</h3>
-
-          <div className="space-y-4">
-            {/* Cardholder Name */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">
-                Cardholder Name
-              </label>
-              <input
-                type="text"
-                name="cardholderName"
-                value={formData.cardholderName}
-                onChange={handleInputChange}
-                placeholder="John Doe"
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-gray-500 font-semibold"
-              />
-            </div>
-
-            {/* Card Number */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">
-                Card Number
-              </label>
-              <input
-                type="text"
-                name="cardNumber"
-                value={formData.cardNumber}
-                onChange={handleInputChange}
-                placeholder="1234 5678 9012 3456"
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-gray-500 font-semibold tracking-widest"
-                maxLength="19"
-              />
-            </div>
-
-            {/* Expiry & CVV */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">
-                  Expiry Date (MM/YY)
-                </label>
-                <input
-                  type="text"
-                  name="expiryDate"
-                  value={formData.expiryDate}
-                  onChange={handleInputChange}
-                  placeholder="MM/YY"
-                  maxLength="5"
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-gray-500 font-semibold"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">
-                  CVV
-                </label>
-                <input
-                  type="password"
-                  name="cvv"
-                  value={formData.cvv}
-                  onChange={handleInputChange}
-                  placeholder="•••"
-                  maxLength="3"
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-gray-500 font-semibold"
-                />
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
-              <button
-                onClick={handleAddCard}
-                className="flex-1 py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold shadow-lg hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-95 transition-all duration-300"
-              >
-                Add Card
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddCard(false);
-                  setFormData({
-                    cardholderName: "",
-                    cardNumber: "",
-                    expiryDate: "",
-                    cvv: "",
-                  });
-                }}
-                className="flex-1 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20 transition-all duration-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-500/10 to-blue-500/10 text-center text-gray-300 font-semibold shadow-sm">
+        Auto trigger payments coming soon
+      </div>
 
       {/* Empty State */}
-      {cards.length === 0 && !showAddCard && (
+      {cards.length === 0 && (
         <div className="bg-[#121826]/70 backdrop-blur-xl rounded-2xl p-12 border border-white/10 text-center">
           <div className="text-5xl mb-4">💳</div>
-          <p className="text-gray-400 mb-2">No payment methods added yet</p>
-          <p className="text-gray-500 text-sm">Add a card to start making payments</p>
+          <p className="text-gray-400 mb-2">Auto trigger payments coming soon</p>
         </div>
       )}
     </div>

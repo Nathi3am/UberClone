@@ -17,6 +17,11 @@ body {
   overflow-x: hidden;
 }
 
+/* Smooth anchor scrolling for prototype navigation */
+html {
+	scroll-behavior: smooth;
+}
+
 /* Persistent ambient background — applied to #root */
 #root {
   position: relative;

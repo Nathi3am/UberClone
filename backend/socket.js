@@ -25,6 +25,8 @@ function isAllowedOrigin(origin) {
     if (isAppLocalhost) return true;
     const isLan = /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(origin);
     if (isLan) return true;
+    // Allow admin frontend hosted on Render
+    if (origin && origin.indexOf('https://vexomoveadmin.onrender.com') === 0) return true;
     return false;
 }
 
