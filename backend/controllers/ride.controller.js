@@ -169,6 +169,17 @@ module.exports.createRide = async (req, res) => {
                 const captainId = captainDoc._id ? String(captainDoc._id) : null;
                 if (captainId && pushNotifiedCaptainIds.has(captainId)) return;
                 const tokens = Array.isArray(captainDoc.pushTokens) ? captainDoc.pushTokens : [];
+                // server-side guard: only send pushes to captains who are marked online and
+                // have an active session token (to avoid notifying logged-out devices)
+                if (captainDoc.isOnline !== true) {
+                    console.log(`[ride-push] skipping captain ${captainId} — isOnline !== true`);
+                    return;
+                }
+                if (!captainDoc.activeSessionToken) {
+                    console.log(`[ride-push] skipping captain ${captainId} — missing activeSessionToken`);
+                    return;
+                }
+
                 if (!tokens.length) return;
 
                 await sendPush(
@@ -180,6 +191,13 @@ module.exports.createRide = async (req, res) => {
                         type: 'new-ride-request',
                     }
                 );
+
+                // record push send timestamp for diagnostics
+                try {
+                    if (captainId) {
+                        await Captain.findByIdAndUpdate(captainId, { $set: { lastPushSentAt: new Date() } }).catch(() => {});
+                    }
+                } catch (e) {}
 
                 if (captainId) {
                     pushNotifiedCaptainIds.add(captainId);
@@ -195,7 +213,8 @@ module.exports.createRide = async (req, res) => {
                     isApproved: true,
                     isOnline: true,
                     status: 'active',
-                }).select('_id pushTokens socketId fullname').lean();
+                    activeSessionToken: { $exists: true, $ne: null }
+                }).select('_id pushTokens socketId fullname activeSessionToken isOnline').lean();
 
                 console.log(`[ride-push] Found ${onlineCaptains.length} online+approved+active captains`);
                 onlineCaptains.forEach(c => {
