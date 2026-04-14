@@ -134,8 +134,19 @@ module.exports.logoutCaptain = async (req, res, next) => {
         if (captainId && token) {
             await captainModel.findByIdAndUpdate(captainId, { $pull: { activeTokens: token } });
         }
-        // also clear the activeSessionToken so device can log back in cleanly
-        try { if (captainId) await captainModel.findByIdAndUpdate(captainId, { $set: { activeSessionToken: null } }); } catch (e) {}
+        // clear session token, go offline, and wipe FCM tokens so no push reaches a logged-out device
+        try {
+            if (captainId) {
+                await captainModel.findByIdAndUpdate(captainId, {
+                    $set: {
+                        activeSessionToken: null,
+                        isOnline: false,      // exclude from ride broadcast queries
+                        status: 'inactive',   // belt-and-suspenders guard
+                        pushTokens: []        // remove all FCM tokens — re-registered on next login
+                    }
+                });
+            }
+        } catch (e) {}
     } catch (e) {}
     return res.status(200).json({ message: 'Logged out' });
 }
@@ -159,6 +170,28 @@ module.exports.savePushToken = async (req, res, next) => {
     } catch (error) {
         console.error('[push-token] Failed to save push token:', error.message);
         return res.status(500).json({ message: 'Failed to save push token' });
+    }
+}
+
+module.exports.removePushToken = async (req, res, next) => {
+    try {
+        const pushToken = (typeof req.body.pushToken === 'string' && req.body.pushToken.trim()) || (typeof req.query.pushToken === 'string' && req.query.pushToken.trim());
+        if (!pushToken) {
+            return res.status(400).json({ message: 'pushToken is required' });
+        }
+
+        console.log(`[push-token] Removing FCM token for captain ${req.captain._id}: ${pushToken.substring(0, 20)}...`);
+
+        await captainModel.findByIdAndUpdate(
+            req.captain._id,
+            { $pull: { pushTokens: pushToken } },
+            { new: true }
+        );
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('[push-token] Failed to remove push token:', error && error.message ? error.message : error);
+        return res.status(500).json({ message: 'Failed to remove push token' });
     }
 }
 

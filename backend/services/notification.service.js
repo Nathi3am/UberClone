@@ -99,9 +99,28 @@ const sendPush = async (tokens, title, body, data = {}) => {
         const failed = response.responses.filter(r => !r.success);
         console.log(`[push] Result: ${succeeded} succeeded, ${failed.length} failed out of ${tokenList.length}`);
         if (failed.length > 0) {
+            // FCM error codes that mean the token is permanently invalid
+            const STALE_CODES = [
+                'messaging/registration-token-not-registered',
+                'messaging/invalid-registration-token',
+                'messaging/invalid-argument',
+            ];
             failed.forEach((f, i) => {
                 const errCode = f.error?.code || f.error?.message || 'unknown';
                 console.warn(`[push]   failed[${i}]: ${errCode}`);
+
+                // Auto-remove permanently invalid tokens from the DB so they never accumulate
+                if (STALE_CODES.includes(errCode)) {
+                    const staleToken = tokenList[i];
+                    if (staleToken) {
+                        require('../models/captain.model')
+                            .updateMany(
+                                { pushTokens: staleToken },
+                                { $pull: { pushTokens: staleToken } }
+                            )
+                            .catch(e => console.warn('[push] Failed to remove stale token:', e?.message));
+                    }
+                }
             });
         }
     } catch (err) {

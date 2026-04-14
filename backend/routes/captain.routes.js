@@ -35,6 +35,16 @@ router.post('/push-token', authMiddleware.authCaptain, (req, res) => {
     captainController.savePushToken(req, res);
 });
 
+// Remove a saved push token for the current captain
+router.post('/remove-push-token', authMiddleware.authCaptain, (req, res) => {
+    captainController.removePushToken(req, res);
+});
+
+// Also support DELETE semantics on the same resource
+router.delete('/push-token', authMiddleware.authCaptain, (req, res) => {
+    captainController.removePushToken(req, res);
+});
+
 // Driver stats for dashboard
 router.get('/stats', authMiddleware.authCaptain, (req, res) => {
     captainController.getStats(req, res);
