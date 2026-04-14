@@ -123,6 +123,19 @@ const captainSchema = new mongoose.Schema({
         default: null,
         index: true
     },
+    // device presence and diagnostics
+    deviceConnected: {
+        type: Boolean,
+        default: false
+    },
+    lastSeen: {
+        type: Date,
+        default: null
+    },
+    lastPushSentAt: {
+        type: Date,
+        default: null
+    },
     pastRides: [
         {
             rideId: { type: require('mongoose').Schema.Types.ObjectId, ref: 'Ride' },

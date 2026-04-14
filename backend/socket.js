@@ -68,7 +68,7 @@ function initializeSocket(server) {
                 await userModel.findByIdAndUpdate(userId, { socketId: socket.id });
                 try { socket.join(userId.toString()); } catch (e) {}
             } else if (userType === 'captain') {
-                await captainModel.findByIdAndUpdate(userId, { socketId: socket.id });
+                await captainModel.findByIdAndUpdate(userId, { socketId: socket.id, deviceConnected: true, lastSeen: new Date() });
                 try { socket.join(userId.toString()); } catch (e) {}
             } else if (userType === 'admin') {
                 // admins join a shared 'admins' room to receive global dashboard broadcasts
@@ -86,6 +86,16 @@ function initializeSocket(server) {
         socket.on('captain-online', (captainId) => {
             try { socket.join('onlineCaptains'); } catch (e) {}
             console.log(`Captain ${captainId} joined onlineCaptains (socket ${socket.id})`);
+        });
+
+        // allow captain to mark themselves offline (leave onlineCaptains room)
+        socket.on('captain-offline', (captainId) => {
+            try {
+                try { socket.leave('onlineCaptains'); } catch (e) {}
+                // mark device disconnected for this captain id (logout flow)
+                try { captainModel.findByIdAndUpdate(captainId, { deviceConnected: false, lastSeen: new Date() }).catch(() => {}); } catch (e) {}
+                console.log(`Captain ${captainId} left onlineCaptains (socket ${socket.id})`);
+            } catch (e) {}
         });
 
         // allow drivers to mark themselves online for quick socket lookup
@@ -574,6 +584,18 @@ function initializeSocket(server) {
                         console.log(`Removed onlineDrivers entry for ${id} on disconnect`);
                     }
                 }
+            } catch (e) {}
+            // mark any captain using this socket as deviceDisconnected
+            try {
+                (async () => {
+                    try {
+                        const cap = await captainModel.findOne({ socketId: socket.id }).select('_id');
+                        if (cap && cap._id) {
+                            await captainModel.findByIdAndUpdate(cap._id, { deviceConnected: false, lastSeen: new Date(), socketId: null }).catch(() => {});
+                            console.log(`Marked captain ${cap._id} deviceConnected=false on disconnect (socket ${socket.id})`);
+                        }
+                    } catch (e) {}
+                })();
             } catch (e) {}
         });
     });
